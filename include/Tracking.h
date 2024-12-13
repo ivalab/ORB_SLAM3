@@ -36,6 +36,8 @@
 #include "System.h"
 #include "ImuTypes.h"
 #include "Settings.h"
+#include "MacroDefinitions.h"
+#include "Timer.h"
 
 #include "GeometricCamera.h"
 
@@ -53,6 +55,94 @@ class LoopClosing;
 class System;
 class Settings;
 
+
+class OdometryLog
+{
+public:
+  
+  OdometryLog(double time_stamp_, double tx_, double ty_, double tz_,
+	  double qw_, double qx_, double qy_, double qz_) : 
+      time_stamp(time_stamp_), tx(tx_), ty(ty_), tz(tz_), qw(qw_), qx(qx_), qy(qy_), qz(qz_), 
+      Twc(Eigen::Quaternionf(qw, qx, qy, qz), Eigen::Vector3f(tx, ty, tz)),
+      Tcw(Twc.inverse())
+  {
+  }
+  
+  double time_stamp;
+  double tx, ty, tz;
+  double qw, qx, qy, qz;
+  
+  Sophus::SE3f Tcw;
+  Sophus::SE3f Twc;
+
+};
+
+struct OdomLogComparator {
+    bool operator()(double const& t0, OdometryLog const& m1) const {
+        return t0 < m1.time_stamp;
+    }
+    
+    bool operator()(OdometryLog const& m0, double const& t1) const {
+        return m0.time_stamp < t1;
+    }
+};
+class MotionModel
+{
+public:
+    MotionModel()
+    {
+        buffer_.reserve(10000);
+        // Initialize extrisnics.
+        Tc2b.setQuaternion(Eigen::Quaternion<float>(-0.500, 0.500, -0.500, 0.500));
+        Tc2b.translation() = Eigen::Vector3f(0.094, -0.074, 0.280);
+        Tb2c = Tc2b.inverse();
+    }
+
+    void append(const OdometryLog& odom)
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        buffer_.emplace_back(odom);
+    }
+
+    void reset()
+    {
+        buffer_.clear();
+    }
+
+    bool predict(const double time_prev, const double time_curr, Sophus::SE3f & T_se) {
+        std::unique_lock<std::mutex> lock(mutex_);
+        int n = buffer_.size(), i;
+        //cout << "mvOdomBuf.size() = " << n ;
+
+        auto lower = std::lower_bound( buffer_.begin(), buffer_.end(), time_prev, OdomLogComparator() );
+        auto upper = std::upper_bound( buffer_.begin(), buffer_.end(), time_curr, OdomLogComparator() );
+
+        if (lower == buffer_.end()){
+            buffer_.clear();
+            return false;
+        }
+        const auto T_st = lower->Twc;
+
+        if (upper == buffer_.end()){
+            buffer_.clear();
+            return false;
+        }
+        const auto T_ed = upper->Twc;
+
+        // relative transform between i_st & i_ed
+        // cv::Mat Ttmp = (Tb2c * T_ed * T_st.inv() * Tc2b);
+        T_se = (Tb2c * T_ed.inverse() * T_st * Tc2b);
+
+        //mvOdomBuf.clear();
+        buffer_.erase(buffer_.begin(), upper);
+        return true;
+    }
+
+private:
+    std::mutex mutex_;
+    std::vector<OdometryLog> buffer_;
+    Sophus::SE3f Tb2c, Tc2b;
+};
 class Tracking
 {  
 
@@ -107,6 +197,8 @@ public:
     void SaveSubTrajectory(string strNameFile_frames, string strNameFile_kf, Map* pMap);
 
     float GetImageScale();
+    void updateORBExtractor(int feature_num);
+    void SetRealTimeFileStream(string fNameRealTimeTrack);
 
 #ifdef REGISTER_LOOP
     void RequestStop();
@@ -366,8 +458,67 @@ protected:
     std::mutex mMutexStop;
 #endif
 
+    std::ofstream f_realTimeTrack;
+
 public:
     cv::Mat mImRight;
+
+    struct TimeLog
+    {
+        double timestamp          = 0.0;
+        double feature_extraction = 0.0;
+        double stereo_matching    = 0.0;
+        double create_frame       = 0.0;
+        double track_motion       = 0.0;
+        double track_keyframe     = 0.0;
+        double track_map          = 0.0;
+        double update_motion      = 0.0;
+        double post_processing    = 0.0;
+
+        /**
+         * @brief Set the Zero object
+         * 
+         */
+        void setZero()
+        {
+            timestamp          = 0.0;
+            feature_extraction = 0.0;
+            stereo_matching    = 0.0;
+            create_frame       = 0.0;
+            track_motion       = 0.0;
+            track_keyframe     = 0.0;
+            track_map          = 0.0;
+            update_motion      = 0.0;
+            post_processing    = 0.0;
+        }
+
+        friend std::ostream& operator<<(std::ostream& os, const TimeLog& l)
+        {
+            os << std::setprecision(10);
+            os << l.timestamp << " "
+               << l.feature_extraction << " "
+               << l.stereo_matching << " "
+               << l.create_frame << " "
+               << l.track_motion << " "
+               << l.track_keyframe << " "
+               << l.track_map << " "
+               << l.update_motion << " "
+               << l.post_processing;
+            return os;
+        }
+
+        static std::string header()
+        {
+            return "# timestamp feature_extraction stereo_matching "
+                   "create_frame track_motion track_keyframe track_map "
+                   "update_motion post_processing";
+        }
+    };
+    TimeLog logCurrentFrame_;
+    std::vector<TimeLog> mFrameTimeLog_;
+    slam_utility::stats::TicTocTimer timer_;
+
+    MotionModel motion_model_;
 };
 
 } //namespace ORB_SLAM

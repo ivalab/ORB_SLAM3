@@ -63,6 +63,8 @@ public:
 
     float inline GetScaleFactor(){
         return scaleFactor;}
+    float GetInitThres() {return iniThFAST;}
+    float GetMinThres() {return minThFAST;}
 
     std::vector<float> inline GetScaleFactors(){
         return mvScaleFactor;

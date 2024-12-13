@@ -128,6 +128,20 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     vdNewKF_ms.clear();
     vdTrackTotal_ms.clear();
 #endif
+
+
+#ifdef DISABLE_RELOC
+    std::cout << "Tracking: relocalization disabled!" << std::endl;
+#else
+    std::cout << "Tracking: relocalization enabled!" << std::endl;
+#endif
+
+#ifdef DISABLE_ATLAS
+    std::cout << "Tracking: MapAtlas disabled!" << std::endl;
+#else
+    std::cout << "Tracking: MapAtlas enabled!" << std::endl;
+#endif
+
 }
 
 #ifdef REGISTER_TIMES
@@ -1454,7 +1468,9 @@ bool Tracking::GetStepByStep()
 Sophus::SE3f Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRectRight, const double &timestamp, string filename)
 {
     //cout << "GrabImageStereo" << endl;
-
+    logCurrentFrame_.setZero();
+    logCurrentFrame_.timestamp = timestamp;
+    timer_.tic();
     mImGray = imRectLeft;
     cv::Mat imGrayRight = imRectRight;
     mImRight = imRectRight;
@@ -1503,6 +1519,9 @@ Sophus::SE3f Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat 
 
     mCurrentFrame.mNameFile = filename;
     mCurrentFrame.mnDataset = mnNumDataset;
+    logCurrentFrame_.create_frame = timer_.toc();
+    logCurrentFrame_.feature_extraction = mCurrentFrame.logCurrentFrame_.feature_extraction;
+    logCurrentFrame_.stereo_matching = mCurrentFrame.logCurrentFrame_.stereo_matching;
 
 #ifdef REGISTER_TIMES
     vdORBExtract_ms.push_back(mCurrentFrame.mTimeORB_Ext);
@@ -1945,14 +1964,22 @@ void Tracking::Track()
                 if((!mbVelocity && !pCurrentMap->isImuInitialized()) || mCurrentFrame.mnId<mnLastRelocFrameId+2)
                 {
                     Verbose::PrintMess("TRACK: Track with respect to the reference KF ", Verbose::VERBOSITY_DEBUG);
+                    timer_.tic();
                     bOK = TrackReferenceKeyFrame();
+                    logCurrentFrame_.track_keyframe = timer_.toc();
                 }
                 else
                 {
                     Verbose::PrintMess("TRACK: Track with motion model", Verbose::VERBOSITY_DEBUG);
+                    timer_.tic();
                     bOK = TrackWithMotionModel();
+                    logCurrentFrame_.track_motion = timer_.toc();
                     if(!bOK)
+                    {
+                        timer_.tic();
                         bOK = TrackReferenceKeyFrame();
+                        logCurrentFrame_.track_keyframe = timer_.toc();
+                    }
                 }
 
 
@@ -2003,7 +2030,11 @@ void Tracking::Track()
                         bOK = Relocalization();
                         //std::cout << "mCurrentFrame.mTimeStamp:" << to_string(mCurrentFrame.mTimeStamp) << std::endl;
                         //std::cout << "mTimeStampLost:" << to_string(mTimeStampLost) << std::endl;
+#ifdef DISABLE_ATLAS
+                        if(mCurrentFrame.mTimeStamp-mTimeStampLost>std::numeric_limits<double>::max() && !bOK)
+#else
                         if(mCurrentFrame.mTimeStamp-mTimeStampLost>3.0f && !bOK)
+#endif
                         {
                             mState = LOST;
                             Verbose::PrintMess("Track Lost...", Verbose::VERBOSITY_NORMAL);
@@ -2124,8 +2155,9 @@ void Tracking::Track()
         {
             if(bOK)
             {
+                timer_.tic();
                 bOK = TrackLocalMap();
-
+                logCurrentFrame_.track_map = timer_.toc();
             }
             if(!bOK)
                 cout << "Fail to track local map!" << endl;
@@ -2204,6 +2236,7 @@ void Tracking::Track()
 
         if(bOK || mState==RECENTLY_LOST)
         {
+            timer_.tic();
             // Update motion model
             if(mLastFrame.isSet() && mCurrentFrame.isSet())
             {
@@ -2214,6 +2247,8 @@ void Tracking::Track()
             else {
                 mbVelocity = false;
             }
+            logCurrentFrame_.update_motion = timer_.toc();
+            timer_.tic();
 
             if(mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD)
                 mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.GetPose());
@@ -2265,6 +2300,7 @@ void Tracking::Track()
                 if(mCurrentFrame.mvpMapPoints[i] && mCurrentFrame.mvbOutlier[i])
                     mCurrentFrame.mvpMapPoints[i]=static_cast<MapPoint*>(NULL);
             }
+            logCurrentFrame_.post_processing = timer_.toc();
         }
 
         // Reset if the camera get lost soon after initialization
@@ -2297,7 +2333,7 @@ void Tracking::Track()
 
 
 
-    if(mState==OK || mState==RECENTLY_LOST)
+    if(mState==OK || mState==RECENTLY_LOST || mState==LOST)
     {
         // Store frame pose information to retrieve the complete camera trajectory afterwards.
         if(mCurrentFrame.isSet())
@@ -2306,7 +2342,19 @@ void Tracking::Track()
             mlRelativeFramePoses.push_back(Tcr_);
             mlpReferences.push_back(mCurrentFrame.mpReferenceKF);
             mlFrameTimes.push_back(mCurrentFrame.mTimeStamp);
-            mlbLost.push_back(mState==LOST);
+            mlbLost.push_back(mState==LOST || mState==RECENTLY_LOST);
+
+            // realtime trajectory logging
+            {
+                const auto Twc = mCurrentFrame.GetPose().inverse();
+                const auto t = Twc.translation();
+                const auto q = Twc.unit_quaternion();
+                f_realTimeTrack
+                    << setprecision(6) << mCurrentFrame.mTimeStamp << setprecision(7) << " "
+                    << t.x() << " " << t.y() << " "
+                    << t.z() << " " << q.x() << " " << q.y() << " "
+                    << q.z() << " " << q.w() << endl;
+            }
         }
         else
         {
@@ -2314,10 +2362,11 @@ void Tracking::Track()
             mlRelativeFramePoses.push_back(mlRelativeFramePoses.back());
             mlpReferences.push_back(mlpReferences.back());
             mlFrameTimes.push_back(mlFrameTimes.back());
-            mlbLost.push_back(mState==LOST);
+            mlbLost.push_back(mState==LOST ||mState==RECENTLY_LOST);
         }
 
     }
+    mFrameTimeLog_.push_back(logCurrentFrame_);
 
 #ifdef REGISTER_LOOP
     if (Stop()) {
@@ -2334,7 +2383,7 @@ void Tracking::Track()
 
 void Tracking::StereoInitialization()
 {
-    if(mCurrentFrame.N>500)
+    if(mCurrentFrame.N>100)
     {
         if (mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD)
         {
@@ -2867,7 +2916,17 @@ bool Tracking::TrackWithMotionModel()
     }
     else
     {
-        mCurrentFrame.SetPose(mVelocity * mLastFrame.GetPose());
+        // Hard-code to use odom motion model.
+        Sophus::SE3f tmp_vel;
+        if (motion_model_.predict(mLastFrame.mTimeStamp, mCurrentFrame.mTimeStamp, tmp_vel))
+        {
+            mCurrentFrame.SetPose(tmp_vel * mLastFrame.GetPose());
+            
+        }
+        else 
+        {
+            mCurrentFrame.SetPose(mVelocity * mLastFrame.GetPose());
+        }
     }
 
 
@@ -3608,6 +3667,9 @@ void Tracking::UpdateLocalKeyFrames()
 
 bool Tracking::Relocalization()
 {
+#ifdef DISABLE_RELOC
+    // do nothing
+#else
     Verbose::PrintMess("Starting relocalization", Verbose::VERBOSITY_NORMAL);
     // Compute Bag of Words Vector
     mCurrentFrame.ComputeBoW();
@@ -3773,7 +3835,7 @@ bool Tracking::Relocalization()
         cout << "Relocalized!!" << endl;
         return true;
     }
-
+#endif
 }
 
 void Tracking::Reset(bool bLocMap)
@@ -4122,5 +4184,35 @@ void Tracking::Release()
     mbStopRequested = false;
 }
 #endif
+
+void Tracking::updateORBExtractor(int feature_num) {
+
+    assert(mpORBextractorLeft != NULL);
+
+    // take the budget number of input arg as feature extraction constr
+    float fScaleFactor = mpORBextractorLeft->GetScaleFactor();
+    int nLevels = mpORBextractorLeft->GetLevels();
+    int fIniThFAST = mpORBextractorLeft->GetInitThres();
+    int fMinThFAST = mpORBextractorLeft->GetMinThres();
+
+    //
+    delete mpORBextractorLeft;
+    mpORBextractorLeft = new ORBextractor(feature_num,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
+
+    if(mSensor==System::STEREO) {
+        assert(mpORBextractorRight != NULL);
+        //
+        delete mpORBextractorRight;
+        mpORBextractorRight = new ORBextractor(feature_num,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
+    }
+    std::cout << "mpTracker constraint adjusted to " << feature_num << std::endl;
+}
+
+void Tracking::SetRealTimeFileStream(string fNameRealTimeTrack)
+{
+    f_realTimeTrack.open(fNameRealTimeTrack.c_str());
+    f_realTimeTrack << fixed;
+    f_realTimeTrack << "#TimeStamp Tx Ty Tz Qx Qy Qz Qw" << std::endl;
+}
 
 } //namespace ORB_SLAM

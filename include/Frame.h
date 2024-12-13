@@ -32,6 +32,7 @@
 
 #include "Converter.h"
 #include "Settings.h"
+#include "Timer.h"
 
 #include <mutex>
 #include <opencv2/opencv.hpp>
@@ -367,6 +368,14 @@ public:
     }
 
     Sophus::SE3<double> T_test;
+public:
+    struct TimeLog
+    {
+        double feature_extraction = 0.0;
+        double stereo_matching = 0.0;
+    };
+    TimeLog logCurrentFrame_;
+    slam_utility::stats::TicTocTimer timer_;
 };
 
 }// namespace ORB_SLAM

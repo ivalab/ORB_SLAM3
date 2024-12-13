@@ -30,13 +30,7 @@ endif()
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/../../../cmake_modules)
 
-find_package(OpenCV 3.0 QUIET)
-if(NOT OpenCV_FOUND)
-   find_package(OpenCV 2.4.3 QUIET)
-   if(NOT OpenCV_FOUND)
-      message(FATAL_ERROR "OpenCV > 2.4.3 not found.")
-   endif()
-endif()
+find_package(OpenCV 4 QUIET)
 
 find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
@@ -55,29 +49,33 @@ ${EIGEN3_LIBS}
 ${Pangolin_LIBRARIES}
 ${PROJECT_SOURCE_DIR}/../../../Thirdparty/DBoW2/lib/libDBoW2.so
 ${PROJECT_SOURCE_DIR}/../../../Thirdparty/g2o/lib/libg2o.so
-${PROJECT_SOURCE_DIR}/../../../lib/libORB_SLAM3.so
+# ${PROJECT_SOURCE_DIR}/../../../lib/libORB_SLAM3.so
+${PROJECT_NAME}
 -lboost_system
+-lGL
 )
 
-# Node for monocular camera
-rosbuild_add_executable(Mono
-src/ros_mono.cc
-)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(Mono
-${LIBS}
-)
+# # Node for monocular camera
+# rosbuild_add_executable(Mono
+# src/ros_mono.cc
+# )
 
-# Node for monocular camera (Augmented Reality Demo)
-rosbuild_add_executable(MonoAR
-src/AR/ros_mono_ar.cc
-src/AR/ViewerAR.h
-src/AR/ViewerAR.cc
-)
+# target_link_libraries(Mono
+# ${LIBS}
+# )
 
-target_link_libraries(MonoAR
-${LIBS}
-)
+# # Node for monocular camera (Augmented Reality Demo)
+# rosbuild_add_executable(MonoAR
+# src/AR/ros_mono_ar.cc
+# src/AR/ViewerAR.h
+# src/AR/ViewerAR.cc
+# )
+
+# target_link_libraries(MonoAR
+# ${LIBS}
+# )
 
 # Node for stereo camera
 rosbuild_add_executable(Stereo
@@ -88,23 +86,23 @@ target_link_libraries(Stereo
 ${LIBS}
 )
 
-# Node for RGB-D camera
-rosbuild_add_executable(RGBD
-src/ros_rgbd.cc
-)
+# # Node for RGB-D camera
+# rosbuild_add_executable(RGBD
+# src/ros_rgbd.cc
+# )
 
-target_link_libraries(RGBD
-${LIBS}
-)
+# target_link_libraries(RGBD
+# ${LIBS}
+# )
 
-# Node for monocular-inertial camera
-rosbuild_add_executable(Mono_Inertial
-src/ros_mono_inertial.cc
-)
+# # Node for monocular-inertial camera
+# rosbuild_add_executable(Mono_Inertial
+# src/ros_mono_inertial.cc
+# )
 
-target_link_libraries(Mono_Inertial
-${LIBS}
-)
+# target_link_libraries(Mono_Inertial
+# ${LIBS}
+# )
 
 # Node for stereo-inertial camera
 rosbuild_add_executable(Stereo_Inertial

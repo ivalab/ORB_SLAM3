@@ -1158,6 +1158,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
                 }
         }
     }
+    num_MPs = lLocalMapPoints.size();
 
     // Fixed Keyframes. Keyframes that see Local MapPoints but that are not Local Keyframes
     list<KeyFrame*> lFixedCameras;
@@ -2431,6 +2432,7 @@ void Optimizer::LocalInertialBA(KeyFrame *pKF, bool *pbStopFlag, Map *pMap, int&
                     }
         }
     }
+    num_MPs = lLocalMapPoints.size();
 
     // Fixed Keyframe: First frame previous KF to optimization window)
     list<KeyFrame*> lFixedKeyFrames;

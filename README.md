@@ -1,3 +1,87 @@
+## Ubuntu 20.04 & ROS Noetic
+
+## Build Pangolin
+
+- Pangolin (visualization)
+
+    Dowload and install instructions can be found at: https://github.com/stevenlovegrove/Pangolin.
+
+
+## Build with ROS
+```bash
+
+cd ~/closedloop_ws/src/ # ros workspace
+
+git clone https://github.com/ivalab/ORB_SLAM3.git
+
+cd ORB_SLAM3
+
+# Build support.
+./buid.sh
+
+
+# Build ROS.
+
+# !!! ALWAYS REMEMBER TO EXPORT ROS PATH !!!
+source export_ros_path.bash # Plz configure your own path before sourcing
+
+cd build
+
+# Default build ROS with closedloop test enabled and map-atlas disabled.
+cmake ..
+make -j
+
+# They can be turned off by passing corresponding flags, e.g.
+cmake .. -DBUILD_ROS=OFF -DENABLE_CLOSED_LOOP=OFF
+
+```
+### Build non-ROS only (no closed-loop supported)
+```bash
+cd ~/catkin_ws/src/ORB_SLAM3
+
+./build.sh
+```
+
+### Run
+```bash
+roscore
+
+# !!! ALWAYS REMEMBER TO EXPORT ROS PATH !!!
+source export_ros_path.bash
+
+cd script
+
+python Run_EuRoC_Stereo.py
+
+```
+
+### Evaluation
+```bash
+python Evaluate_EuRoC_Stereo.py
+
+python Collect_EuRoC_Stereo.py
+```
+
+---
+---
+
+## ROS Kinect and Ubuntu 16.04 (DEPRECATED)
+
+```
+cd ydu_workspace/catkin_ws/src/ORB_SLAM3
+
+export ROS_PACKAGE_PATH=${ROS_PACKAGE_PATH}:/home/yipuzhao/ydu_workspace/catkin_ws/src/ORB_SLAM3/Examples_old/ROS
+
+./build_ros.sh
+
+roscore
+
+rosrun ORB_SLAM3 Stereo Vocabulary/ORBvoc.txt Examples_old/Stereo/EuRoC.yaml true
+
+rosbag play --pause MH_01_easy.bag /cam0/image_raw:=/camera/left/image_raw /cam1/image_raw:=/camera/right/image_raw /imu0:=/imu
+```
+---
+---
 # ORB-SLAM3
 
 ### V1.0, December 22th, 2021

@@ -1,0 +1,27 @@
+<launch>
+
+<arg name="path_slam_config" default = "/home/yanwei/closedloop_ws/src/ORB_Data/"/>
+<arg name="path_track_logging" default = "/tmp/orb3_imu"/>
+<arg name="num_all_feature" default = "400" />
+<arg name="do_rectify" default = "false" />
+<arg name="do_vis" default = "0" />
+<arg name="slam_pose_topic" default="/visual/pose"/>
+<arg name="imu_topic" default="/camera/imu"/>
+
+
+<!-- call baselin ORB-SLAM for vision-based state estimation  -->
+<node pkg="ORB_SLAM3" type="Stereo_Inertial" name="visual_slam" 
+    args="$(arg path_slam_config)/ORBvoc.bin 
+        $(arg path_slam_config)/TSRB_yaml/d435i_orb3_inertial.yaml 
+        $(arg num_all_feature) 
+        $(arg do_rectify) 
+        $(arg do_vis) 
+        /camera/infra1/image_rect_raw 
+        /camera/infra2/image_rect_raw 
+        $(arg path_track_logging)" output="screen">
+    <remap from="ORB_SLAM/camera_pose_in_imu" to="$(arg slam_pose_topic)"/>
+    <remap from="/imu" to="$(arg imu_topic)"/>
+</node>
+
+</launch>
+

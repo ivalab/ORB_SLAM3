@@ -74,6 +74,13 @@ LoopClosing::LoopClosing(Atlas *pAtlas, KeyFrameDatabase *pDB, ORBVocabulary *pV
     mstrFolderSubTraj = "SubTrajectories/";
     mnNumCorrection = 0;
     mnCorrectionGBA = 0;
+
+#ifdef DISABLE_LOOP_CLOSURE
+    std::cout << "Main: loop closure disabled!" << std::endl;
+#else
+    std::cout << "Main: loop closure enabled!" << std::endl;
+#endif
+
 }
 
 void LoopClosing::SetTracker(Tracking *pTracker)
@@ -94,6 +101,10 @@ void LoopClosing::Run()
     while(1)
     {
 
+#ifdef DISABLE_LOOP_CLOSURE
+        // do nothing
+
+#else
         //NEW LOOP AND MERGE DETECTION ALGORITHM
         //----------------------------
 
@@ -295,6 +306,8 @@ void LoopClosing::Run()
             }
             mpLastCurrentKF = mpCurrentKF;
         }
+
+#endif
 
         ResetIfRequested();
 

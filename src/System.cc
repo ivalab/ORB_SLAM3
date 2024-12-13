@@ -33,6 +33,11 @@
 #include <boost/archive/xml_iarchive.hpp>
 #include <boost/archive/xml_oarchive.hpp>
 
+bool has_suffix(const std::string &str, const std::string &suffix) {
+    std::size_t index = str.find(suffix, str.size() - suffix.size());
+    return (index != std::string::npos);
+}
+
 namespace ORB_SLAM3
 {
 
@@ -115,7 +120,15 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
         cout << endl << "Loading ORB Vocabulary. This could take a while..." << endl;
 
         mpVocabulary = new ORBVocabulary();
-        bool bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
+        bool bVocLoad = false;
+        if (has_suffix(strVocFile, ".txt"))
+        {
+            bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
+        }
+        else
+        {
+            bVocLoad = mpVocabulary->loadFromBinaryFile(strVocFile);
+        }
         if(!bVocLoad)
         {
             cerr << "Wrong path to vocabulary. " << endl;
@@ -137,7 +150,15 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
         cout << endl << "Loading ORB Vocabulary. This could take a while..." << endl;
 
         mpVocabulary = new ORBVocabulary();
-        bool bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
+        bool bVocLoad = false;
+        if (has_suffix(strVocFile, ".txt"))
+        {
+            bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
+        }
+        else
+        {
+            bVocLoad = mpVocabulary->loadFromBinaryFile(strVocFile);
+        }
         if(!bVocLoad)
         {
             cerr << "Wrong path to vocabulary. " << endl;
@@ -239,6 +260,9 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     // Fix verbosity
     Verbose::SetTh(Verbose::VERBOSITY_QUIET);
 
+#ifdef ENABLE_CLOSED_LOOP
+    std::cout << "System: Closed-Loop mode enabled!" << std::endl;
+#endif
 }
 
 Sophus::SE3f System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp, const vector<IMU::Point>& vImuMeas, string filename)
@@ -1543,6 +1567,33 @@ string System::CalculateCheckSum(string filename, int type)
     }
 
     return checksum;
+}
+
+
+void System::SaveTrackingLog(const string &filename)
+{
+    cout << endl << "Saving tracking log to " << filename << " ..." << endl;
+    std::ofstream myfile(filename);
+    myfile << Tracking::TimeLog::header() << "\n";
+    myfile << std::fixed;
+    for (const auto& log : mpTracker->mFrameTimeLog_)
+    {
+        myfile << log << "\n";
+    }
+    myfile.close();
+}
+
+void System::SaveMappingLog(const string &filename)
+{
+    cout << endl << "Saving mapping log to " << filename << " ..." << endl;
+    std::ofstream myfile(filename);
+    myfile << LocalMapping::TimeLog::header() << "\n";
+    myfile << std::fixed;
+    for (const auto& log : mpLocalMapper->mFrameTimeLog_)
+    {
+        myfile << log << "\n";
+    }
+    myfile.close();
 }
 
 } //namespace ORB_SLAM

@@ -125,7 +125,9 @@ void LocalMapping::Run()
             {
                 if(mpAtlas->KeyFramesInMap()>2)
                 {
-
+                    logCurrentFrame_.setZero();
+                    logCurrentFrame_.timestamp = mpCurrentKeyFrame->mTimeStamp;
+                    timer_.tic();
                     if(mbInertial && mpCurrentKeyFrame->GetMap()->isImuInitialized())
                     {
                         float dist = (mpCurrentKeyFrame->mPrevKF->GetCameraCenter() - mpCurrentKeyFrame->GetCameraCenter()).norm() +
@@ -154,7 +156,12 @@ void LocalMapping::Run()
                         Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpCurrentKeyFrame->GetMap(),num_FixedKF_BA,num_OptKF_BA,num_MPs_BA,num_edges_BA);
                         b_doneLBA = true;
                     }
-
+                    logCurrentFrame_.local_ba = timer_.toc();
+                    logCurrentFrame_.num_fixed_kfs = num_FixedKF_BA;
+                    logCurrentFrame_.num_opt_kfs   = num_OptKF_BA;
+                    logCurrentFrame_.num_points    = num_MPs_BA;
+                    logCurrentFrame_.num_edges     = num_edges_BA;
+                    mFrameTimeLog_.emplace_back(logCurrentFrame_);
                 }
 #ifdef REGISTER_TIMES
                 std::chrono::steady_clock::time_point time_EndLBA = std::chrono::steady_clock::now();
@@ -212,6 +219,7 @@ void LocalMapping::Run()
                                     InitializeIMU(1.f, 1e5, true);
 
                                 cout << "end VIBA 1" << endl;
+                                IMU_INIT_1 = true;
                             }
                         }
                         else if(!mpCurrentKeyFrame->GetMap()->GetIniertialBA2()){
@@ -224,6 +232,7 @@ void LocalMapping::Run()
                                     InitializeIMU(0.f, 0.f, true);
 
                                 cout << "end VIBA 2" << endl;
+                                IMU_INIT_2 = true;
                             }
                         }
 
@@ -1116,6 +1125,8 @@ void LocalMapping::ResetIfRequested()
             mbNotBA2 = true;
             mbNotBA1 = true;
             mbBadImu=false;
+            IMU_INIT_1 = false;
+            IMU_INIT_2 = false;
 
             mIdxInit=0;
 
@@ -1133,6 +1144,8 @@ void LocalMapping::ResetIfRequested()
             mbNotBA2 = true;
             mbNotBA1 = true;
             mbBadImu=false;
+            IMU_INIT_1 = false;
+            IMU_INIT_2 = false;
 
             mbResetRequested = false;
             mbResetRequestedActiveMap = false;

@@ -194,7 +194,52 @@ protected:
 
     //DEBUG
     ofstream f_lm;
+public:
+    struct TimeLog
+    {
+        double timestamp = 0.0;
+        double local_ba = 0.0;
+        int    num_fixed_kfs = 0;
+        int    num_opt_kfs   = 0;
+        int    num_points   = 0;
+        int    num_edges     = 0;
 
+        /**
+         * @brief Set the Zero object
+         * 
+         */
+        void setZero()
+        {
+            timestamp = 0.0;
+            local_ba = 0.0;
+            num_fixed_kfs = 0;
+            num_opt_kfs = 0;
+            num_points = 0;
+            num_edges = 0;
+        }
+
+        friend std::ostream& operator<<(std::ostream& os, const TimeLog& l)
+        {
+            os << std::setprecision(10);
+            os << l.timestamp << " "
+               << l.local_ba << " "
+               << l.num_fixed_kfs << " "
+               << l.num_opt_kfs << " "
+               << l.num_points;
+            //    << l.num_edges;
+            return os;
+        }
+
+        static std::string header()
+        {
+            return "# timestamp local_ba num_fixed_kfs num_opt_kfs num_points "
+                   "num_edges";
+        }
+    };
+    TimeLog logCurrentFrame_;
+    std::vector<TimeLog> mFrameTimeLog_;
+    slam_utility::stats::TicTocTimer timer_;
+    bool IMU_INIT_1 = false, IMU_INIT_2 = false;
     };
 
 } //namespace ORB_SLAM
