@@ -1538,6 +1538,10 @@ Sophus::SE3f Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat 
 
 Sophus::SE3f Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp, string filename)
 {
+    logCurrentFrame_.setZero();
+    logCurrentFrame_.timestamp = timestamp;
+    timer_.tic();
+
     mImGray = imRGB;
     cv::Mat imDepth = imD;
 
@@ -1565,6 +1569,9 @@ Sophus::SE3f Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, co
         mCurrentFrame = Frame(mImGray,imDepth,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth,mpCamera,&mLastFrame,*mpImuCalib);
 
 
+    logCurrentFrame_.create_frame = timer_.toc();
+    logCurrentFrame_.feature_extraction = mCurrentFrame.logCurrentFrame_.feature_extraction;
+    logCurrentFrame_.stereo_matching = mCurrentFrame.logCurrentFrame_.stereo_matching;
 
 
 
@@ -2349,11 +2356,14 @@ void Tracking::Track()
                 const auto Twc = mCurrentFrame.GetPose().inverse();
                 const auto t = Twc.translation();
                 const auto q = Twc.unit_quaternion();
-                f_realTimeTrack
-                    << setprecision(6) << mCurrentFrame.mTimeStamp << setprecision(7) << " "
-                    << t.x() << " " << t.y() << " "
-                    << t.z() << " " << q.x() << " " << q.y() << " "
-                    << q.z() << " " << q.w() << endl;
+                if (!t.hasNaN())
+                {
+                    f_realTimeTrack
+                        << setprecision(6) << mCurrentFrame.mTimeStamp << setprecision(7) << " "
+                        << t.x() << " " << t.y() << " "
+                        << t.z() << " " << q.x() << " " << q.y() << " "
+                        << q.z() << " " << q.w() << endl;
+                }
             }
         }
         else

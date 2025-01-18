@@ -1255,6 +1255,11 @@ void LocalMapping::InitializeIMU(float priorG, float priorA, bool bFIBA)
         }
 
         dirG = dirG/dirG.norm();
+        if (std::isnan(dirG[0])) {
+            cout << "encounter nan values when initializing imu, abort" << endl;
+            bInitializing=false;
+            return;
+        }
         Eigen::Vector3f gI(0.0f, 0.0f, -1.0f);
         Eigen::Vector3f v = gI.cross(dirG);
         const float nv = v.norm();

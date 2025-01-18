@@ -185,7 +185,9 @@ Eigen::Matrix4f Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool>
             vAvailableIndices.pop_back();
         }
 
-        ComputeSim3(P3Dc1i,P3Dc2i);
+        if (!ComputeSim3(P3Dc1i,P3Dc2i)) {
+            continue;
+        }
 
         CheckInliers();
 
@@ -258,7 +260,9 @@ Eigen::Matrix4f Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool>
             vAvailableIndices.pop_back();
         }
 
-        ComputeSim3(P3Dc1i,P3Dc2i);
+        if (!ComputeSim3(P3Dc1i,P3Dc2i)) {
+            continue;
+        }
 
         CheckInliers();
 
@@ -308,7 +312,7 @@ void Sim3Solver::ComputeCentroid(Eigen::Matrix3f &P, Eigen::Matrix3f &Pr, Eigen:
 }
 
 
-void Sim3Solver::ComputeSim3(Eigen::Matrix3f &P1, Eigen::Matrix3f &P2)
+bool Sim3Solver::ComputeSim3(Eigen::Matrix3f &P1, Eigen::Matrix3f &P2)
 {
     // Custom implementation of:
     // Horn 1987, Closed-form solution of absolute orientataion using unit quaternions
@@ -364,9 +368,10 @@ void Sim3Solver::ComputeSim3(Eigen::Matrix3f &P1, Eigen::Matrix3f &P2)
     // Rotation angle. sin is the norm of the imaginary part, cos is the real part
     double ang=atan2(vec.norm(),evec(0,maxIndex));
 
-    if(vec.norm()!=0){
-        vec = 2*ang*vec/vec.norm(); //Angle-axis representation. quaternion angle is the half
+    if(vec.norm() < 1e-6) {
+        return false;
     }
+    vec = 2*ang*vec/vec.norm(); //Angle-axis representation. quaternion angle is the half
     mR12i = Sophus::SO3f::exp(vec).matrix();
 
     // Step 5: Rotate set 2
@@ -411,8 +416,8 @@ void Sim3Solver::ComputeSim3(Eigen::Matrix3f &P1, Eigen::Matrix3f &P2)
 
     Eigen::Vector3f tinv = -sRinv * mt12i;
     mT21i.block<3,1>(0,3) = tinv;
+    return true;
 }
-
 
 void Sim3Solver::CheckInliers()
 {
