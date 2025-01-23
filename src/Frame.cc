@@ -88,6 +88,10 @@ Frame::Frame(const Frame &frame)
         SetVelocity(frame.GetVelocity());
     }
 
+    if(frame.HasPriorPose()) {
+        SetPriorPose(frame.GetPriorPose());
+    }
+
     mmProjectPoints = frame.mmProjectPoints;
     mmMatchedInImage = frame.mmMatchedInImage;
 

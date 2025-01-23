@@ -32,13 +32,15 @@
 
 #include "Converter.h"
 #include "Settings.h"
-#include "Timer.h"
 
 #include <mutex>
 #include <opencv2/opencv.hpp>
 
 #include "Eigen/Core"
 #include "sophus/se3.hpp"
+
+#include <slam_utility/types.h>
+#include <slam_utility/timer.h>
 
 namespace ORB_SLAM3
 {
@@ -162,8 +164,9 @@ public:
     inline bool HasVelocity() const {
         return mbHasVelocity;
     }
-
-
+    void SetPriorPose(const slam_utility::Pose3f &Tcw) { opt_Tcw_prior_ = Tcw; }
+    inline bool HasPriorPose() const { return !(opt_Tcw_prior_ == boost::none); }
+    inline const slam_utility::Pose3f &GetPriorPose() const { return *opt_Tcw_prior_; }
 
 private:
     //Sophus/Eigen migration
@@ -375,7 +378,8 @@ public:
         double stereo_matching = 0.0;
     };
     TimeLog logCurrentFrame_;
-    slam_utility::stats::TicTocTimer timer_;
+    slam_utility::TicTocTimer timer_;
+    slam_utility::OptionalPose3f opt_Tcw_prior_ = boost::none;
 };
 
 }// namespace ORB_SLAM

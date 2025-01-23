@@ -6,6 +6,10 @@ if(ENABLE_CLOSED_LOOP)
     add_definitions(-DENABLE_CLOSED_LOOP)
 endif()
 
+# if(NOT ENABLE_COMPILING_WARNINGS)
+add_definitions(-w)
+# endif()
+
 option(BUILD_ROS "Build Closed-Loop" ON)
 
 IF(NOT CMAKE_BUILD_TYPE)

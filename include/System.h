@@ -59,9 +59,9 @@ public:
     static eLevel th;
 
 public:
-    static void PrintMess(std::string str, eLevel lev)
+    static void PrintMess(std::string str, eLevel lev = VERBOSITY_NORMAL, bool condition = true)
     {
-        if(lev <= th)
+        if(lev <= th && condition)
             cout << str << endl;
     }
 
@@ -267,6 +267,7 @@ private:
 
     string mStrVocabularyFilePath;
 
+public:
     Settings* settings_;
 };
 

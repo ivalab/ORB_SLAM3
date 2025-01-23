@@ -76,8 +76,9 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
             }
         }
     }
-
-
+    if (F.HasPriorPose()) {
+        opt_Tcw_prior_ = F.GetPriorPose();
+    }
 
     if(!F.HasVelocity()) {
         mVw.setZero();

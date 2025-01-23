@@ -80,6 +80,7 @@ void LocalMapping::Run()
             std::chrono::steady_clock::time_point time_StartProcessKF = std::chrono::steady_clock::now();
 #endif
             // BoW conversion and insertion in Map
+            Verbose::PrintMess("LBA: Process new keyframe.", Verbose::VERBOSITY_VERY_VERBOSE);
             ProcessNewKeyFrame();
 #ifdef REGISTER_TIMES
             std::chrono::steady_clock::time_point time_EndProcessKF = std::chrono::steady_clock::now();
@@ -89,6 +90,7 @@ void LocalMapping::Run()
 #endif
 
             // Check recent MapPoints
+            Verbose::PrintMess("LBA: MapPoints culling.", Verbose::VERBOSITY_VERY_VERBOSE);
             MapPointCulling();
 #ifdef REGISTER_TIMES
             std::chrono::steady_clock::time_point time_EndMPCulling = std::chrono::steady_clock::now();
@@ -98,6 +100,7 @@ void LocalMapping::Run()
 #endif
 
             // Triangulate new MapPoints
+            Verbose::PrintMess("LBA: Create new map points.", Verbose::VERBOSITY_VERY_VERBOSE);
             CreateNewMapPoints();
 
             mbAbortBA = false;
@@ -123,11 +126,13 @@ void LocalMapping::Run()
 
             if(!CheckNewKeyFrames() && !stopRequested())
             {
+                Verbose::PrintMess("New Keyframes are detected in local mapping.");
                 if(mpAtlas->KeyFramesInMap()>2)
                 {
                     logCurrentFrame_.setZero();
                     logCurrentFrame_.timestamp = mpCurrentKeyFrame->mTimeStamp;
                     timer_.tic();
+                    Verbose::PrintMess("Running LBA ... ");
                     if(mbInertial && mpCurrentKeyFrame->GetMap()->isImuInitialized())
                     {
                         float dist = (mpCurrentKeyFrame->mPrevKF->GetCameraCenter() - mpCurrentKeyFrame->GetCameraCenter()).norm() +
@@ -156,6 +161,7 @@ void LocalMapping::Run()
                         Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpCurrentKeyFrame->GetMap(),num_FixedKF_BA,num_OptKF_BA,num_MPs_BA,num_edges_BA);
                         b_doneLBA = true;
                     }
+                    Verbose::PrintMess("Running LBA Done");
                     logCurrentFrame_.local_ba = timer_.toc();
                     logCurrentFrame_.num_fixed_kfs = num_FixedKF_BA;
                     logCurrentFrame_.num_opt_kfs   = num_OptKF_BA;

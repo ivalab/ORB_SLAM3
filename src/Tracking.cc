@@ -1970,25 +1970,30 @@ void Tracking::Track()
 
                 if((!mbVelocity && !pCurrentMap->isImuInitialized()) || mCurrentFrame.mnId<mnLastRelocFrameId+2)
                 {
-                    Verbose::PrintMess("TRACK: Track with respect to the reference KF ", Verbose::VERBOSITY_DEBUG);
+                    Verbose::PrintMess("TRACK: Track with respect to the reference KF ", Verbose::VERBOSITY_NORMAL);
                     timer_.tic();
                     bOK = TrackReferenceKeyFrame();
                     logCurrentFrame_.track_keyframe = timer_.toc();
                 }
                 else
                 {
-                    Verbose::PrintMess("TRACK: Track with motion model", Verbose::VERBOSITY_DEBUG);
+                    // Apply motion prior.
+                    Verbose::PrintMess("TRACK: Track with motion model", Verbose::VERBOSITY_NORMAL);
                     timer_.tic();
-                    bOK = TrackWithMotionModel();
+                    bOK = ApplyMotionPrior();
                     logCurrentFrame_.track_motion = timer_.toc();
-                    if(!bOK)
-                    {
+                    if (!bOK) {
                         timer_.tic();
-                        bOK = TrackReferenceKeyFrame();
-                        logCurrentFrame_.track_keyframe = timer_.toc();
+                        bOK = TrackWithMotionModel();
+                        logCurrentFrame_.track_motion = timer_.toc();
+                        if(!bOK)
+                        {
+                            timer_.tic();
+                            bOK = TrackReferenceKeyFrame();
+                            logCurrentFrame_.track_keyframe = timer_.toc();
+                        }
                     }
                 }
-
 
                 if (!bOK)
                 {
@@ -2027,7 +2032,8 @@ void Tracking::Track()
                         if (mCurrentFrame.mTimeStamp-mTimeStampLost>time_recently_lost)
                         {
                             mState = LOST;
-                            Verbose::PrintMess("Track Lost...", Verbose::VERBOSITY_NORMAL);
+                            Verbose::PrintMess("Inertial Mode: Tracking transits from RECENT_LOST to LOST ...", Verbose::VERBOSITY_NORMAL);
+                            // Verbose::PrintMess("Inertial Mode: Track Lost...", Verbose::VERBOSITY_NORMAL);
                             bOK=false;
                         }
                     }
@@ -2040,11 +2046,15 @@ void Tracking::Track()
 #ifdef DISABLE_ATLAS
                         if(mCurrentFrame.mTimeStamp-mTimeStampLost>std::numeric_limits<double>::max() && !bOK)
 #else
-                        if(mCurrentFrame.mTimeStamp-mTimeStampLost>3.0f && !bOK)
+                        // Try motion model.
+                        { bOK = ApplyMotionPrior(); }
+                        // if(mCurrentFrame.mTimeStamp-mTimeStampLost>3.0f && !bOK)
+                        if(mCurrentFrame.mTimeStamp-mTimeStampLost>time_recently_lost || !bOK)
 #endif
                         {
                             mState = LOST;
-                            Verbose::PrintMess("Track Lost...", Verbose::VERBOSITY_NORMAL);
+                            Verbose::PrintMess("Visual Mode: Tracking transits from RECENT_LOST to LOST ...", Verbose::VERBOSITY_NORMAL);
+                            // Verbose::PrintMess("Track Lost...", Verbose::VERBOSITY_NORMAL);
                             bOK=false;
                         }
                     }
@@ -2070,6 +2080,24 @@ void Tracking::Track()
                 }
             }
 
+            // Add by yanwei: the following code block is to enforce tracking loss after running for a while, aims to 
+            // debug the map reseting in atlas.
+            // { 
+            // static int fake_count = 0;
+            // if (fake_count > 200) {
+            //     std::cout << "fake cur \n: " << mCurrentFrame.GetPose().matrix() << std::endl;
+            //     mState = LOST;
+            //     bOK = false;
+            //     fake_count = 0;
+            //     Verbose::PrintMess("Manually set state to be LOST.");
+            //     CreateMapInAtlas();
+            //     return;
+            // }
+            // std::stringstream ss;
+            // ss << "fake_count: " << fake_count;
+            // Verbose::PrintMess(ss.str());
+            // fake_count++;
+            // }
         }
         else
         {
@@ -2162,12 +2190,16 @@ void Tracking::Track()
         {
             if(bOK)
             {
+                Verbose::PrintMess("Track Local Map.");
                 timer_.tic();
                 bOK = TrackLocalMap();
                 logCurrentFrame_.track_map = timer_.toc();
             }
             if(!bOK)
                 cout << "Fail to track local map!" << endl;
+            // if (mCurrentFrame.HasPriorPose()) {
+            //     mCurrentFrame.SetPose(mCurrentFrame.GetPriorPose());
+            // }
         }
         else
         {
@@ -2288,8 +2320,16 @@ void Tracking::Track()
             // Check if we need to insert a new keyframe
             // if(bNeedKF && bOK)
             if(bNeedKF && (bOK || (mInsertKFsLost && mState==RECENTLY_LOST &&
-                                   (mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD))))
+                                   (mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD)))) {
                 CreateNewKeyFrame();
+            } else if (bNeedKF &&
+                       (bOK || (mInsertKFsLost && mState == RECENTLY_LOST))) {
+                CreateNewKeyFrame();
+            }
+            Verbose::PrintMess(
+                "Keyframe inserted during tracking RECENTLY_LOST",
+                Verbose::VERBOSITY_NORMAL,
+                bNeedKF && mInsertKFsLost && mState == RECENTLY_LOST);
 
 #ifdef REGISTER_TIMES
             std::chrono::steady_clock::time_point time_EndNewKF = std::chrono::steady_clock::now();
@@ -2327,7 +2367,7 @@ void Tracking::Track()
                 }
 
             CreateMapInAtlas();
-
+            Verbose::PrintMess("Terminate current frame tracking, Return.");
             return;
         }
 
@@ -2427,6 +2467,37 @@ void Tracking::StereoInitialization()
         }
         else
             mCurrentFrame.SetPose(Sophus::SE3f());
+
+        // Add by yanwei: try motion model, the goal is to connect the maps;
+        {
+            // KeyFrame* recent_kf = mpAtlas->GetMostRecentKF();
+            // if (recent_kf) {
+            if (last_active_frame_) {
+                slam_utility::Pose3f cTm = last_active_frame_->GetPose();
+                slam_utility::OptionalPose3f opt_vel =
+                    motion_model_.predictRelMotionORB(
+                        last_active_frame_->mTimeStamp,
+                        mCurrentFrame.mTimeStamp);
+                if (opt_vel) {
+                    Verbose::PrintMess("Use motion prior to initiate the new map.");
+                    cTm = (*opt_vel) * last_active_frame_->GetPose();
+                } else {
+                    // NOTE(yanwei): the best we have is just the recent frame pose?
+                    Verbose::PrintMess("Use the most recent Frame in DB to initiate the new map.");
+                }
+                // if (mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD) {
+                //     slam_utility::Pose3f Twb0 =
+                //         cTm.inverse() * mCurrentFrame.mImuCalib.mTcb;
+                //     mCurrentFrame.SetImuPoseVelocity(
+                //         Twb0.rotationMatrix(), Twb0.translation(),
+                //         slam_utility::Vec3f::Zero());
+                //     std::cout << Twb0.matrix() << std::endl;
+                // } else {
+                mCurrentFrame.SetPriorPose(cTm);
+                mCurrentFrame.SetPose(cTm);
+                // }
+            }
+        }
 
         // Create KeyFrame
         KeyFrame* pKFini = new KeyFrame(mCurrentFrame,mpAtlas->GetCurrentMap(),mpKeyFrameDB);
@@ -2720,6 +2791,7 @@ void Tracking::CreateInitialMapMonocular()
 
 void Tracking::CreateMapInAtlas()
 {
+    Verbose::PrintMess("Tracking: CreateMapInAtlas is called ...");
     mnLastInitFrameId = mCurrentFrame.mnId;
     mpAtlas->CreateNewMap();
     if (mSensor==System::IMU_STEREO || mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_RGBD)
@@ -2751,6 +2823,7 @@ void Tracking::CreateMapInAtlas()
     if(mpReferenceKF)
         mpReferenceKF = static_cast<KeyFrame*>(NULL);
 
+    last_active_frame_ = mCurrentFrame;
     mLastFrame = Frame();
     mCurrentFrame = Frame();
     mvIniMatches.clear();
@@ -2926,14 +2999,14 @@ bool Tracking::TrackWithMotionModel()
     }
     else
     {
-        // Hard-code to use odom motion model.
-        Sophus::SE3f tmp_vel;
-        if (motion_model_.predict(mLastFrame.mTimeStamp, mCurrentFrame.mTimeStamp, tmp_vel))
-        {
-            mCurrentFrame.SetPose(tmp_vel * mLastFrame.GetPose());
+        // // Hard-code to use odom motion model.
+        // Sophus::SE3f tmp_vel;
+        // if (motion_model_.predict(mLastFrame.mTimeStamp, mCurrentFrame.mTimeStamp, tmp_vel))
+        // {
+        //     mCurrentFrame.SetPose(tmp_vel * mLastFrame.GetPose());
             
-        }
-        else 
+        // }
+        // else 
         {
             mCurrentFrame.SetPose(mVelocity * mLastFrame.GetPose());
         }
@@ -3036,8 +3109,10 @@ bool Tracking::TrackLocalMap()
         }
 
     int inliers;
-    if (!mpAtlas->isImuInitialized())
-        Optimizer::PoseOptimization(&mCurrentFrame);
+    if (!mpAtlas->isImuInitialized()) {
+        Verbose::PrintMess("TLM: PoseOptimization with Relative Constraint");
+        Optimizer::PoseOptimizationWithRelativeConstraint(&mCurrentFrame, &mLastFrame);
+    }
     else
     {
         if(mCurrentFrame.mnId<=mnLastRelocFrameId+mnFramesToResetIMU)
@@ -3140,6 +3215,9 @@ bool Tracking::NeedNewKeyFrame()
             return true;
         else
             return false;
+    }
+    if ((mState == RECENTLY_LOST || use_motion_prior_) && (mCurrentFrame.mTimeStamp-mpLastKeyFrame->mTimeStamp)>=0.25) {
+        return true;
     }
 
     if(mbOnlyTracking)
@@ -3291,6 +3369,7 @@ void Tracking::CreateNewKeyFrame()
         return;
 
     KeyFrame* pKF = new KeyFrame(mCurrentFrame,mpAtlas->GetCurrentMap(),mpKeyFrameDB);
+    Verbose::PrintMess("New Keyframe is Created.");
 
     if(mpAtlas->isImuInitialized()) //  || mpLocalMapper->IsInitializing())
         pKF->bImu = true;
@@ -3527,7 +3606,8 @@ void Tracking::UpdateLocalKeyFrames()
 {
     // Each map point vote for the keyframes in which it has been observed
     map<KeyFrame*,int> keyframeCounter;
-    if(!mpAtlas->isImuInitialized() || (mCurrentFrame.mnId<mnLastRelocFrameId+2))
+    // if(!mpAtlas->isImuInitialized() || (mCurrentFrame.mnId<mnLastRelocFrameId+2))
+    if((!use_motion_prior_ && !mpAtlas->isImuInitialized()) || (mCurrentFrame.mnId<mnLastRelocFrameId+2))
     {
         for(int i=0; i<mCurrentFrame.N; i++)
         {
@@ -3679,6 +3759,7 @@ bool Tracking::Relocalization()
 {
 #ifdef DISABLE_RELOC
     // do nothing
+    return false;
 #else
     Verbose::PrintMess("Starting relocalization", Verbose::VERBOSITY_NORMAL);
     // Compute Bag of Words Vector
@@ -4223,6 +4304,23 @@ void Tracking::SetRealTimeFileStream(string fNameRealTimeTrack)
     f_realTimeTrack.open(fNameRealTimeTrack.c_str());
     f_realTimeTrack << fixed;
     f_realTimeTrack << "#TimeStamp Tx Ty Tz Qx Qy Qz Qw" << std::endl;
+}
+
+bool Tracking::ApplyMotionPrior() {
+    use_motion_prior_ = false;
+    slam_utility::OptionalPose3f opt_vel = motion_model_.predictRelMotionORB(
+        mLastFrame.mTimeStamp, mCurrentFrame.mTimeStamp);
+    if (!opt_vel) {
+        Verbose::PrintMess("Failed to use motion prior.", Verbose::VERBOSITY_VERY_VERBOSE);
+        return false;
+    } else {
+        auto prior = (*opt_vel) * mLastFrame.GetPose();
+        mCurrentFrame.SetPriorPose(prior);
+        mCurrentFrame.SetPose(prior);
+        use_motion_prior_ = true;
+    }
+    // return use_motion_prior_;
+    return true;
 }
 
 } //namespace ORB_SLAM

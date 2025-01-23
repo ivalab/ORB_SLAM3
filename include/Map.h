@@ -95,6 +95,7 @@ public:
     long unsigned int GetMaxKFid();
 
     KeyFrame* GetOriginKF();
+    KeyFrame* GetMostRecentKF();
 
     void SetCurrentMap();
     void SetStoredMap();
@@ -168,6 +169,7 @@ protected:
 
     KeyFrame* mpKFinitial;
     KeyFrame* mpKFlowerID;
+    KeyFrame* mpKFrecent;
 
     unsigned long int mnBackupKFinitialID;
     unsigned long int mnBackupKFlowerID;

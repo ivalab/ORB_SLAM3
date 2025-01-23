@@ -53,6 +53,7 @@ int main(int argc, char **argv)
     std::string path_to_sequence;
     std::string association_filename;
     std::string imu_filename;
+    std::string wo_filename;
     std::string dataset;
     std::string output_dir;
     float speed = 1.0;
@@ -62,26 +63,29 @@ int main(int argc, char **argv)
         "path_to_vocabulary,v",
         po::value<std::string>(&path_to_vocabulary)->default_value(""),
         "path_to_vocabulary")(
-        "path_to_settings,s",
+        "path_to_settings,y",
         po::value<std::string>(&path_to_settings)->default_value(""),
         "path_to_settings")(
-        "path_to_sequence,q",
+        "path_to_sequence,s",
         po::value<std::string>(&path_to_sequence)->default_value(""),
         "path_to_sequence")(
         "association_filename,a",
         po::value<std::string>(&association_filename)->default_value(""),
         "association filename")(
-        "dataset,t", po::value<std::string>(&dataset)->default_value("dummy"),
+        "dataset,n", po::value<std::string>(&dataset)->default_value("dummy"),
         "dataset name (default: dummy)")(
         "output_dir,o",
         po::value<std::string>(&output_dir)->default_value("/tmp/orb3_rgbd/"),
         "output_dir (default: /tmp)")(
-        "speed,d", po::value<float>(&speed)->default_value(1.0),
+        "speed,f", po::value<float>(&speed)->default_value(1.0),
         "playing speed")(
-        "use_viewer,w", po::value<bool>(&use_viewer)->default_value(true),
+        "use_viewer,z", po::value<bool>(&use_viewer)->default_value(true),
         "use viewer")("imu_filename,i",
                       po::value<std::string>(&imu_filename)->default_value(""),
-                      "imu filename, use imu if provided (default: empty)");
+                      "imu filename, use imu if provided (default: empty)")(
+        "wo_filename,w",
+        po::value<std::string>(&wo_filename)->default_value(""),
+        "wheel odom filename, use wheel odom if provided (default: empty)");
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -138,6 +142,13 @@ int main(int argc, char **argv)
     SLAM.mpTracker->SetRealTimeFileStream(output_dir_prefix + "_AllFrameTrajectory.txt");
     float imageScale = SLAM.GetImageScale();
 
+    if (!wo_filename.empty())
+    {
+        std::cout << "Wheel odometry file provided." << std::endl;
+        SLAM.mpTracker->motion_model_.loadOdom(wo_filename,
+                                               SLAM.settings_->Toc());
+    }
+
     // Vector for tracking time statistics
     vector<float> vTimesTrack;
     // vTimesTrack.resize(nImages);
@@ -148,8 +159,10 @@ int main(int argc, char **argv)
     cout << "Images in the sequence: " << nImages << endl << endl;
 
     // Main loop
+    int printFreq = 100;
     int proccIm = 0;
-    int imCount = nImages + 1;
+    int imCount = 1500; //nImages + 1;  // Short: 800, Medium: 1600
+    imCount = std::min(imCount, nImages);
     cv::Mat imRGB, imD;
     for(int ni=0; ni<nImages; ni++)
     {
@@ -226,6 +239,18 @@ int main(int argc, char **argv)
         {
             break;
         }
+        // Output real time factor.
+        if (printFreq == 100)
+        {
+            float rt_factor = (float)proccIm / (ni + 1);
+            std::stringstream ss;
+            ss << "Processed v.s. Actual = (" << proccIm << ", " << ni + 1
+               << "), Total = " << nImages
+               << ", Realtime Factor = " << rt_factor << "\n";
+            ORB_SLAM3::Verbose::PrintMess(ss.str());
+            printFreq = 0;
+        }
+        printFreq++;
     }
 
     // Tracking time statistics

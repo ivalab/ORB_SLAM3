@@ -37,7 +37,9 @@
 #include "ImuTypes.h"
 #include "Settings.h"
 #include "MacroDefinitions.h"
-#include "Timer.h"
+
+#include <slam_utility/timer.h>
+#include <slam_utility/motion_model.h>
 
 #include "GeometricCamera.h"
 
@@ -86,63 +88,7 @@ struct OdomLogComparator {
         return m0.time_stamp < t1;
     }
 };
-class MotionModel
-{
-public:
-    MotionModel()
-    {
-        buffer_.reserve(10000);
-        // Initialize extrisnics.
-        Tc2b.setQuaternion(Eigen::Quaternion<float>(-0.500, 0.500, -0.500, 0.500));
-        Tc2b.translation() = Eigen::Vector3f(0.094, -0.074, 0.280);
-        Tb2c = Tc2b.inverse();
-    }
 
-    void append(const OdometryLog& odom)
-    {
-        std::unique_lock<std::mutex> lock(mutex_);
-        buffer_.emplace_back(odom);
-    }
-
-    void reset()
-    {
-        buffer_.clear();
-    }
-
-    bool predict(const double time_prev, const double time_curr, Sophus::SE3f & T_se) {
-        std::unique_lock<std::mutex> lock(mutex_);
-        int n = buffer_.size(), i;
-        //cout << "mvOdomBuf.size() = " << n ;
-
-        auto lower = std::lower_bound( buffer_.begin(), buffer_.end(), time_prev, OdomLogComparator() );
-        auto upper = std::upper_bound( buffer_.begin(), buffer_.end(), time_curr, OdomLogComparator() );
-
-        if (lower == buffer_.end()){
-            buffer_.clear();
-            return false;
-        }
-        const auto T_st = lower->Twc;
-
-        if (upper == buffer_.end()){
-            buffer_.clear();
-            return false;
-        }
-        const auto T_ed = upper->Twc;
-
-        // relative transform between i_st & i_ed
-        // cv::Mat Ttmp = (Tb2c * T_ed * T_st.inv() * Tc2b);
-        T_se = (Tb2c * T_ed.inverse() * T_st * Tc2b);
-
-        //mvOdomBuf.clear();
-        buffer_.erase(buffer_.begin(), upper);
-        return true;
-    }
-
-private:
-    std::mutex mutex_;
-    std::vector<OdometryLog> buffer_;
-    Sophus::SE3f Tb2c, Tc2b;
-};
 class Tracking
 {  
 
@@ -320,6 +266,8 @@ protected:
 
     // Reset IMU biases and compute frame velocity
     void ResetFrameIMU();
+
+    bool ApplyMotionPrior();
 
     bool mbMapUpdated;
 
@@ -516,9 +464,10 @@ public:
     };
     TimeLog logCurrentFrame_;
     std::vector<TimeLog> mFrameTimeLog_;
-    slam_utility::stats::TicTocTimer timer_;
-
-    MotionModel motion_model_;
+    slam_utility::TicTocTimer timer_;
+    slam_utility::MotionModel motion_model_;
+    bool use_motion_prior_ = false;
+    boost::optional<Frame> last_active_frame_ = boost::none;
 };
 
 } //namespace ORB_SLAM

@@ -65,6 +65,7 @@ void Map::AddKeyFrame(KeyFrame *pKF)
         mnInitKFid = pKF->mnId;
         mpKFinitial = pKF;
         mpKFlowerID = pKF;
+        mpKFrecent  = pKF;
     }
     mspKeyFrames.insert(pKF);
     if(pKF->mnId>mnMaxKFid)
@@ -74,6 +75,9 @@ void Map::AddKeyFrame(KeyFrame *pKF)
     if(pKF->mnId<mpKFlowerID->mnId)
     {
         mpKFlowerID = pKF;
+    }
+    if (mpKFrecent->mTimeStamp <= pKF->mTimeStamp) {
+        mpKFrecent = pKF;
     }
 }
 
@@ -199,6 +203,11 @@ long unsigned int Map::GetMaxKFid()
 KeyFrame* Map::GetOriginKF()
 {
     return mpKFinitial;
+}
+
+KeyFrame* Map::GetMostRecentKF()
+{
+    return mpKFrecent;
 }
 
 void Map::SetCurrentMap()

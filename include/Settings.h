@@ -89,7 +89,8 @@ namespace ORB_SLAM3 {
         float gyroWalk() {return gyroWalk_;}
         float accWalk() {return accWalk_;}
         float imuFrequency() {return imuFrequency_;}
-        Sophus::SE3f Tbc() {return Tbc_;}
+        const Sophus::SE3f& Tbc() {return Tbc_;}
+        const Sophus::SE3f& Toc() { return Toc_; }
         bool insertKFsWhenLost() {return insertKFsWhenLost_;}
 
         float depthMapFactor() {return depthMapFactor_;}
@@ -149,6 +150,7 @@ namespace ORB_SLAM3 {
         void readImageInfo(cv::FileStorage& fSettings);
         void readIMU(cv::FileStorage& fSettings);
         void readRGBD(cv::FileStorage& fSettings);
+        bool readWheelOdom(cv::FileStorage& fSettings);
         void readORB(cv::FileStorage& fSettings);
         void readViewer(cv::FileStorage& fSettings);
         void readLoadAndSave(cv::FileStorage& fSettings);
@@ -190,7 +192,7 @@ namespace ORB_SLAM3 {
         float noiseGyro_, noiseAcc_;
         float gyroWalk_, accWalk_;
         float imuFrequency_;
-        Sophus::SE3f Tbc_;
+        Sophus::SE3f Tbc_, Toc_;
         bool insertKFsWhenLost_;
 
         /*

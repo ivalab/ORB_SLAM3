@@ -12,11 +12,11 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define DISABLE_ATLAS
+// #define DISABLE_ATLAS
 
 // #define ENABLE_CLOSED_LOOP
 
-// #define DISABLE_RELOC
+#define DISABLE_RELOC
 // #define DISABLE_LOOP_CLOSURE
 
 #endif  // ORB_SLAM3_MACRO_DEFINITIONS_H_

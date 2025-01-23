@@ -139,6 +139,8 @@ public:
 
     long unsigned int GetNumLivedMP();
 
+    KeyFrame* GetMostRecentKF();
+
 protected:
 
     std::set<Map*> mspMaps;
@@ -147,6 +149,7 @@ protected:
     std::vector<Map*> mvpBackupMaps;
 
     Map* mpCurrentMap;
+    KeyFrame* mpRecentKF_ = NULL;
 
     std::vector<GeometricCamera*> mvpCameras;
 

@@ -154,14 +154,19 @@ namespace ORB_SLAM3 {
         readImageInfo(fSettings);
         cout << "\t-Loaded image info" << endl;
 
-        if(sensor_ == System::IMU_MONOCULAR || sensor_ == System::IMU_STEREO || sensor_ == System::IMU_RGBD){
+        // if(sensor_ == System::IMU_MONOCULAR || sensor_ == System::IMU_STEREO || sensor_ == System::IMU_RGBD){
             readIMU(fSettings);
             cout << "\t-Loaded IMU calibration" << endl;
-        }
+        // }
 
         if(sensor_ == System::RGBD || sensor_ == System::IMU_RGBD){
             readRGBD(fSettings);
             cout << "\t-Loaded RGB-D calibration" << endl;
+        }
+
+        // Add by yanwei: try read wheel_odom to camera.
+        if (readWheelOdom(fSettings)) {
+            cout << "\t-Loaded Wheel Odom calibration" << endl;
         }
 
         readORB(fSettings);
@@ -440,6 +445,16 @@ namespace ORB_SLAM3 {
         bf_ = b_ * calibration1_->getParameter(0);
     }
 
+    bool Settings::readWheelOdom(cv::FileStorage &fSettings) {
+        bool found;
+        cv::Mat cvToc = readParameter<cv::Mat>(fSettings,"WO.T_o_c1",found, false);
+        if (found && !cvToc.empty()) {
+            // Default identity.
+            Toc_ = Converter::toSophus(cvToc);
+        }
+        return found;
+    }
+
     void Settings::readORB(cv::FileStorage &fSettings) {
         bool found;
 
@@ -622,6 +637,7 @@ namespace ORB_SLAM3 {
             output << "\t-Accelerometer walk: " << settings.accWalk_ << endl;
             output << "\t-IMU frequency: " << settings.imuFrequency_ << endl;
         }
+        output << "\t-InsertKFsWhenLost: " << settings.insertKFsWhenLost_ << endl;
 
         if(settings.sensor_ == System::RGBD || settings.sensor_ == System::IMU_RGBD){
             output << "\t-RGB-D depth map factor: " << settings.depthMapFactor_ << endl;

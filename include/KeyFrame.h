@@ -536,7 +536,9 @@ public:
         cout << "Point distribution in KeyFrame: left-> " << left << " --- right-> " << right << endl;
     }
 
-
+    slam_utility::OptionalPose3f opt_Tcw_prior_ = boost::none;
+    bool HasPriorPose() { return !(opt_Tcw_prior_ == boost::none); }
+    const slam_utility::Pose3f& GetPriorPose() { return *opt_Tcw_prior_; }
 };
 
 } //namespace ORB_SLAM

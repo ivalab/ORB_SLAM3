@@ -104,6 +104,12 @@ void Atlas::AddKeyFrame(KeyFrame* pKF)
 {
     Map* pMapKF = pKF->GetMap();
     pMapKF->AddKeyFrame(pKF);
+    if (mpRecentKF_ == NULL) {
+        mpRecentKF_ = pKF;
+    }
+    else if (mpRecentKF_->mTimeStamp <= pKF->mTimeStamp) {
+        mpRecentKF_ = pKF;
+    }
 }
 
 void Atlas::AddMapPoint(MapPoint* pMP)
@@ -408,6 +414,10 @@ map<long unsigned int, KeyFrame*> Atlas::GetAtlasKeyframes()
     }
 
     return mpIdKFs;
+}
+
+KeyFrame* Atlas::GetMostRecentKF() {
+    return mpRecentKF_;
 }
 
 } //namespace ORB_SLAM3
