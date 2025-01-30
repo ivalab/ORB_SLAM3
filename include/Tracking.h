@@ -37,12 +37,13 @@
 #include "ImuTypes.h"
 #include "Settings.h"
 #include "MacroDefinitions.h"
-#include "Timer.h"
 
 #include "GeometricCamera.h"
 
 #include <mutex>
 #include <unordered_set>
+
+#include <slam_utility/timer.h>
 
 namespace ORB_SLAM3
 {
@@ -59,19 +60,19 @@ class Settings;
 class OdometryLog
 {
 public:
-  
+
   OdometryLog(double time_stamp_, double tx_, double ty_, double tz_,
-	  double qw_, double qx_, double qy_, double qz_) : 
-      time_stamp(time_stamp_), tx(tx_), ty(ty_), tz(tz_), qw(qw_), qx(qx_), qy(qy_), qz(qz_), 
+	  double qw_, double qx_, double qy_, double qz_) :
+      time_stamp(time_stamp_), tx(tx_), ty(ty_), tz(tz_), qw(qw_), qx(qx_), qy(qy_), qz(qz_),
       Twc(Eigen::Quaternionf(qw, qx, qy, qz), Eigen::Vector3f(tx, ty, tz)),
       Tcw(Twc.inverse())
   {
   }
-  
+
   double time_stamp;
   double tx, ty, tz;
   double qw, qx, qy, qz;
-  
+
   Sophus::SE3f Tcw;
   Sophus::SE3f Twc;
 
@@ -81,7 +82,7 @@ struct OdomLogComparator {
     bool operator()(double const& t0, OdometryLog const& m1) const {
         return t0 < m1.time_stamp;
     }
-    
+
     bool operator()(OdometryLog const& m0, double const& t1) const {
         return m0.time_stamp < t1;
     }
@@ -144,7 +145,7 @@ private:
     Sophus::SE3f Tb2c, Tc2b;
 };
 class Tracking
-{  
+{
 
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -365,10 +366,10 @@ protected:
     KeyFrame* mpReferenceKF;
     std::vector<KeyFrame*> mvpLocalKeyFrames;
     std::vector<MapPoint*> mvpLocalMapPoints;
-    
+
     // System
     System* mpSystem;
-    
+
     //Drawers
     Viewer* mpViewer;
     FrameDrawer* mpFrameDrawer;
@@ -477,7 +478,7 @@ public:
 
         /**
          * @brief Set the Zero object
-         * 
+         *
          */
         void setZero()
         {
@@ -516,7 +517,7 @@ public:
     };
     TimeLog logCurrentFrame_;
     std::vector<TimeLog> mFrameTimeLog_;
-    slam_utility::stats::TicTocTimer timer_;
+    slam_utility::TicTocTimer timer_;
 
     MotionModel motion_model_;
 };

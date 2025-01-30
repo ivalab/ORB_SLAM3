@@ -206,7 +206,7 @@ public:
 
         /**
          * @brief Set the Zero object
-         * 
+         *
          */
         void setZero()
         {
@@ -238,7 +238,7 @@ public:
     };
     TimeLog logCurrentFrame_;
     std::vector<TimeLog> mFrameTimeLog_;
-    slam_utility::stats::TicTocTimer timer_;
+    slam_utility::TicTocTimer timer_;
     bool IMU_INIT_1 = false, IMU_INIT_2 = false;
     };
 
