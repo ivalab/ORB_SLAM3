@@ -16,8 +16,8 @@ import os
 import subprocess
 import time
 
-DATA_ROOT = os.path.join(os.environ["HOME"], "slam_ws/data/euroc/rosbags")
-# DATA_ROOT = "/mnt/DATA/datasets/euroc/rosbags"
+# DATA_ROOT = os.path.join(os.environ["HOME"], "slam_ws/data/euroc/rosbags")
+DATA_ROOT = "/mnt/DATA/datasets/euroc/rosbags"
 SeqNameList = [
     "MH_01_easy",
     "MH_02_easy",
@@ -32,8 +32,8 @@ SeqNameList = [
     "V2_03_difficult",
 ]
 
-Result_root = os.path.join(os.environ["HOME"], f"slam_ws/results/experiments/openloop/laptop/precision/regular/orb3")
-# Result_root = "/tmp/gfgg"
+# Result_root = os.path.join(os.environ["HOME"], f"slam_ws/results/experiments/openloop/laptop/precision/regular/orb3")
+Result_root = "/tmp/gfgg"
 
 # Number_GF_List = [400, 800, 1000, 1500]
 Number_GF_List = [1200]
@@ -43,10 +43,10 @@ EnableSlomo = False
 SpeedPool = [1.0]  # , 4.0, 5.0]  # x
 SleepTime = 1  # 10 # 25
 EnableViewer = False
-EnableLoggingToFile = 0
+EnableLoggingToFile = 1
 
 ORB3_PATH = os.path.join(os.environ["HOME"], "closedloop_ws/src/ORB_SLAM3")
-ConfigPath = os.path.join(os.environ["HOME"], "closedloop_ws/src/ORB_Data")
+ConfigPath = os.path.join(ORB3_PATH, "Examples_old/Stereo")
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -88,17 +88,16 @@ for speed in SpeedPool:
                 )
 
                 # hardcode, might try other feature number
-                file_setting = os.path.join(ConfigPath, "EuRoC_yaml/EuRoC_stereo_lmk800.yaml")
+                file_setting = os.path.join(ConfigPath, "EuRoC_feature.yaml")
 
-                file_vocab = os.path.join(ConfigPath, "ORBvoc.bin")
+                file_vocab = os.path.join(ORB3_PATH, "Vocabulary/ORBvoc.txt")
 
                 file_traj = os.path.join(Experiment_dir, SeqName)
                 file_dummy_map = file_traj + "_dummy_map.txt"
                 file_log = " > " + file_traj + "_logging.txt" if EnableLoggingToFile else ""
                 file_data = os.path.join(DATA_ROOT, SeqName)
                 file_rosbag = os.path.join(DATA_ROOT, SeqName + ".bag")
-                file_timestamp = os.path.join(file_data, "times.txt")
-                gt_pose_filename = os.path.join(ConfigPath, f"EuRoC_POSE_GT/{SeqName}_cam0.txt")
+                # file_timestamp = os.path.join(file_data, "times.txt")
 
                 # compose cmd
                 cmd_slam = str(
@@ -111,7 +110,7 @@ for speed in SpeedPool:
                     + " "
                     + "false"
                     + " "
-                    + str(EnableViewer)
+                    + str(1 if EnableViewer else 0)
                     + " "
                     + "/cam0/image_raw /cam1/image_raw"
                     + " "
@@ -132,13 +131,14 @@ for speed in SpeedPool:
                     playspeed = speed
                     if EnableSlomo and loop_index == 0:
                         playspeed = 1.0
-                    cmd_rosbag = "rosbag play " + file_rosbag + " -r " + str(playspeed)  # + " -u 5"
+                    cmd_rosbag = "rosbag play " + file_rosbag + " -r " + str(playspeed) + " -u 5"
                     print(bcolors.OKGREEN + f"Loop {loop_index}: launching rosbag ... " + bcolors.ENDC)
                     proc_bag = subprocess.call(cmd_rosbag, shell=True)
                     time.sleep(SleepTime * 3)
 
                 print(bcolors.OKGREEN + "Finished rosbag playback, kill the process" + bcolors.ENDC)
-                subprocess.call("rosnode kill /visual_slam", shell=True)
+                subprocess.call("rosnode kill Stereo", shell=True)
                 time.sleep(SleepTime)
                 # print bcolors.OKGREEN + "Saving the map to file system" + bcolors.ENDC
                 # time.sleep(15)
+                subprocess.call("pkill Stereo", shell=True)
