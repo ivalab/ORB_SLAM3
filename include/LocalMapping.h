@@ -29,6 +29,8 @@
 
 #include <mutex>
 
+#include <slam_utility/stats.h>
+#include <slam_utility/utils.h>
 
 namespace ORB_SLAM3
 {
@@ -240,6 +242,32 @@ public:
     std::vector<TimeLog> mFrameTimeLog_;
     slam_utility::TicTocTimer timer_;
     bool IMU_INIT_1 = false, IMU_INIT_2 = false;
+
+    std::vector<su::CovisibilityStats> frames_covis_stats_;
+
+private:
+    void CollectCovisStats(KeyFrame* const cur_kf)
+    {    
+        const auto neighbor_kfs = cur_kf->GetVectorCovisibleKeyFrames();
+        if (neighbor_kfs.size() < 2)
+        {
+            return;
+        }
+        su::CovisibilityStats cs;
+        cs.timestamp = cur_kf->mTimeStamp;
+        cs.num_covis_kfs  = neighbor_kfs.size();
+        std::vector<double> timestamps;
+        std::vector<su::Pose3f> poses;
+        for (const auto& kf : neighbor_kfs) {
+            timestamps.emplace_back(kf->mTimeStamp);
+            poses.emplace_back(kf->GetPoseInverse());
+        }
+        std::tie(cs.time_dist, cs.dist_dist, cs.angle_dist) =
+            su::Utility::computeKeyframesDistribution(cur_kf->mTimeStamp,
+                                                      cur_kf->GetPoseInverse(),
+                                                      timestamps, poses);
+        frames_covis_stats_.emplace_back(cs);
+    }
 };
 
 } //namespace ORB_SLAM

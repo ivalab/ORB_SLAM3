@@ -3097,6 +3097,7 @@ bool Tracking::TrackLocalMap()
 
     UpdateLocalMap();
     SearchLocalPoints();
+    CollectMapToFrameStats();
 
     // TOO check outliers before PO
     int aux1 = 0, aux2=0;
@@ -4321,6 +4322,30 @@ bool Tracking::ApplyMotionPrior() {
     }
     // return use_motion_prior_;
     return true;
+}
+
+void Tracking::CollectMapToFrameStats() {
+    // su::ScopedTicTocTimer stimer("Map2Frame-Compute-KF-Distribution");
+    su::Map2FrameStats cg;
+    cg.timestamp = mCurrentFrame.mTimeStamp;
+    cg.ref_kf_timestamp = mCurrentFrame.mpReferenceKF->mTimeStamp;
+    cg.max_observed_pts = mCurrentFrame.mpRefKfMaxObsPts;
+    cg.num_kfs   = mvpLocalKeyFrames.size();
+    cg.num_pts   = mvpLocalMapPoints.size();
+    std::vector<double>  kf_timestamps;
+    kf_timestamps.reserve(cg.num_kfs);
+    std::vector<su::Pose3f> kf_poses;
+    kf_poses.reserve(cg.num_kfs);
+    for (const auto& lkf : mvpLocalKeyFrames) {
+        kf_timestamps.emplace_back(lkf->mTimeStamp);
+        kf_poses.emplace_back(lkf->GetPoseInverse());
+    }
+    std::tie(cg.time_dist, cg.dist_dist, cg.angle_dist) =
+        su::Utility::computeKeyframesDistribution(
+            mCurrentFrame.mpReferenceKF->mTimeStamp,
+            mCurrentFrame.mpReferenceKF->GetPoseInverse(),
+            kf_timestamps, kf_poses);
+    m2f_stats_.emplace_back(cg);
 }
 
 } //namespace ORB_SLAM

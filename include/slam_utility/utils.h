@@ -78,26 +78,20 @@ public:
     }
 
     static std::tuple<DistributionStats, DistributionStats, DistributionStats>
-    computeKeyframesDistribution(double kf_timestamp, const cv::Mat& kf_pose,
-                                 const std::vector<double>&  timestamps,
-                                 const std::vector<cv::Mat>& poses) {
+    computeKeyframesDistribution(double kf_timestamp, const Pose3f& kf_pose,
+                                 const std::vector<double>& timestamps,
+                                 const std::vector<Pose3f>& poses) {
         std::vector<double> time_diffs;
         std::vector<double> dist_diffs;
         std::vector<double> angle_diffs;
 
-        Mat44f kf_pose_inv;
-        {
-            Mat44f pose;
-            cv::cv2eigen(kf_pose, pose);
-            kf_pose_inv = pose.inverse();
-        }
+        auto kf_pose_inv = kf_pose.inverse();
         for (size_t i = 0; i < timestamps.size(); i++) {
             time_diffs.emplace_back(std::abs(kf_timestamp - timestamps.at(i)));
-            Mat44f pose_mat;
-            cv::cv2eigen(poses.at(i), pose_mat);
-            const Mat44f diff = kf_pose_inv * pose_mat;
-            double       dist = diff.topRightCorner(3, 1).norm();
-            double angle = AngleAxisf(Mat33f(diff.topLeftCorner(3, 3))).angle();
+            const auto diff = kf_pose_inv * poses.at(i);
+            double     dist = diff.translation().norm();
+            double     angle =
+                AngleAxisf(Mat33f(diff.matrix().topLeftCorner(3, 3))).angle();
             dist_diffs.emplace_back(dist);
             angle_diffs.emplace_back(angle);
         }

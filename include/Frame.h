@@ -380,6 +380,7 @@ public:
     TimeLog logCurrentFrame_;
     slam_utility::TicTocTimer timer_;
     slam_utility::OptionalPose3f opt_Tcw_prior_ = boost::none;
+    int mpRefKfMaxObsPts = 0;
 };
 
 }// namespace ORB_SLAM

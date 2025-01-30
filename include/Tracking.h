@@ -38,8 +38,9 @@
 #include "Settings.h"
 #include "MacroDefinitions.h"
 
-#include <slam_utility/timer.h>
 #include <slam_utility/motion_model.h>
+#include <slam_utility/stats.h>
+#include <slam_utility/timer.h>
 
 #include "GeometricCamera.h"
 
@@ -257,6 +258,7 @@ protected:
 
     bool TrackLocalMap();
     void SearchLocalPoints();
+    void CollectMapToFrameStats();
 
     bool NeedNewKeyFrame();
     void CreateNewKeyFrame();
@@ -468,6 +470,7 @@ public:
     slam_utility::MotionModel motion_model_;
     bool use_motion_prior_ = false;
     boost::optional<Frame> last_active_frame_ = boost::none;
+    std::vector<su::Map2FrameStats> m2f_stats_;
 };
 
 } //namespace ORB_SLAM

@@ -31,7 +31,7 @@ class MethodMetaData:
 
 
 DATA_ROOT = Path("/mnt/DATA/datasets/cid")
-OUTPUT_ROOT = Path("/mnt/DATA/experiments/semantic/cid/tmp/medium")
+OUTPUT_ROOT = Path("/mnt/DATA/experiments/semantic/cid/covis/medium/50/")
 SEQUENCES = [
     SeqMetaData("floor13_1", "", "high"),
     # SeqMetaData("office_1", "", "high"),
@@ -39,8 +39,8 @@ SEQUENCES = [
 ]
 METHODS = [
     # MethodMetaData("orb3_rgbd", 1000, "cam"),
-    MethodMetaData("orb3_rgbd_wo", 1000, "wo"),
-    # MethodMetaData("orb3_rgbd_imu", 1000, "imu"),
+    # MethodMetaData("orb3_rgbd_wo", 1000, "wo"),
+    MethodMetaData("orb3_rgbd_imu", 1000, "imu"),
 ]
 
 SPEEDS = [1.0]  # , 0.1]  # , 2.0, 3.0]

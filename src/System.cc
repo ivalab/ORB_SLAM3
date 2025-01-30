@@ -1582,6 +1582,20 @@ void System::SaveTrackingLog(const string &filename)
         myfile << log << "\n";
     }
     myfile.close();
+
+    {
+        std::string m2f_filename(filename);
+        m2f_filename.replace(m2f_filename.begin() + m2f_filename.find_last_of("."), m2f_filename.end(), "_m2f_stats.txt");
+        cout << endl << "Saving map-to-frame log to " << m2f_filename << " ..." << endl;
+        myfile.open(m2f_filename);
+        myfile << su::Map2FrameStats::header() << "\n";
+        myfile << std::fixed;
+        for (const auto& log : mpTracker->m2f_stats_)
+        {
+            myfile << log << "\n";
+        }
+        myfile.close();
+    }
 }
 
 void System::SaveMappingLog(const string &filename)
@@ -1595,6 +1609,21 @@ void System::SaveMappingLog(const string &filename)
         myfile << log << "\n";
     }
     myfile.close();
+
+    // Save covis stats
+    {
+        std::string covis_filename(filename);
+        covis_filename.replace(covis_filename.begin() + covis_filename.find_last_of("."), covis_filename.end(), "_covis_stats.txt");
+        cout << endl << "Saving covis stats log to " << covis_filename << " ..." << endl;
+        myfile.open(covis_filename);
+        myfile << su::CovisibilityStats::header() << "\n";
+        myfile << std::fixed;
+        for (const auto& log : mpLocalMapper->frames_covis_stats_)
+        {
+            myfile << log << "\n";
+        }
+        myfile.close();
+    }
 }
 
 } //namespace ORB_SLAM
