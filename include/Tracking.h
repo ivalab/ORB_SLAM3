@@ -37,7 +37,7 @@
 #include "ImuTypes.h"
 #include "Settings.h"
 #include "MacroDefinitions.h"
-#include "Timer.h"
+#include "slam_utility/timer.h"
 
 #include "GeometricCamera.h"
 
@@ -516,7 +516,7 @@ public:
     };
     TimeLog logCurrentFrame_;
     std::vector<TimeLog> mFrameTimeLog_;
-    slam_utility::stats::TicTocTimer timer_;
+    slam_utility::TicTocTimer timer_;
 
     MotionModel motion_model_;
 };

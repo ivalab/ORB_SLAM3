@@ -32,7 +32,7 @@
 
 #include "Converter.h"
 #include "Settings.h"
-#include "Timer.h"
+#include "slam_utility/timer.h"
 
 #include <mutex>
 #include <opencv2/opencv.hpp>
@@ -375,7 +375,7 @@ public:
         double stereo_matching = 0.0;
     };
     TimeLog logCurrentFrame_;
-    slam_utility::stats::TicTocTimer timer_;
+    slam_utility::TicTocTimer timer_;
 };
 
 }// namespace ORB_SLAM
