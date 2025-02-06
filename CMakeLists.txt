@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(ORB_SLAM3)
 
-option(ENABLE_CLOSED_LOOP "Build Closed-Loop" OFF)
+option(ENABLE_CLOSED_LOOP "Build Closed-Loop" ON)
 if(ENABLE_CLOSED_LOOP)
     add_definitions(-DENABLE_CLOSED_LOOP)
 endif()
