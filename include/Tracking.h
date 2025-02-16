@@ -61,12 +61,11 @@ class OdometryLog
 {
 public:
 
-  OdometryLog(double time_stamp_, double tx_, double ty_, double tz_,
-	  double qw_, double qx_, double qy_, double qz_) :
+  OdometryLog(double time_stamp_ = -1.0, double tx_ = 0.0, double ty_ = 0.0, double tz_ = 0.0,
+	  double qw_ = 1.0, double qx_ = 0.0, double qy_ = 0.0, double qz_ = 0.0) :
       time_stamp(time_stamp_), tx(tx_), ty(ty_), tz(tz_), qw(qw_), qx(qx_), qy(qy_), qz(qz_),
-      Twc(Eigen::Quaternionf(qw, qx, qy, qz), Eigen::Vector3f(tx, ty, tz)),
-      Tcw(Twc.inverse())
-  {
+      Twc(Eigen::Quaternionf(qw_, qx_, qy_, qz_), Eigen::Vector3f(tx_, ty_, tz_)) {
+    Tcw = Twc.inverse();
   }
 
   double time_stamp;

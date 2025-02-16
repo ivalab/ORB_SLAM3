@@ -6,6 +6,7 @@
 <arg name="do_rectify" default = "false" />
 <arg name="do_vis" default = "0" />
 <arg name="slam_pose_topic" default="/visual/pose"/>
+<arg name="odom_topic" default="/odom"/>
 
 
 <!-- call baselin ORB-SLAM for vision-based state estimation  -->
@@ -19,6 +20,7 @@
         /camera/infra2/image_rect_raw 
         $(arg path_track_logging)" output="screen">
     <remap from="ORB_SLAM/camera_pose_in_imu" to="$(arg slam_pose_topic)"/>
+    <remap from="/odom_dummy" to="$(arg odom_topic)"/>
 </node>
 
 </launch>

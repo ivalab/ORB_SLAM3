@@ -1409,7 +1409,12 @@ void LoopClosing::MergeLocal()
     }
 
     vector<MapPoint*> vpCheckFuseMapPoint;
-    vpCheckFuseMapPoint.reserve(spMapPointMerge.size());
+    try {
+        vpCheckFuseMapPoint.reserve(spMapPointMerge.size());
+    } catch (const std::length_error& e) {
+        std::cerr << "lenght error caught!" << e.what() << std::endl;
+        return;
+    }
     std::copy(spMapPointMerge.begin(), spMapPointMerge.end(), std::back_inserter(vpCheckFuseMapPoint));
 
     //std::cout << "[Merge]: Mm = " << to_string(pMergeMap->GetId()) << "; #KFs = " << to_string(spMergeConnectedKFs.size()) << "; #MPs = " << to_string(spMapPointMerge.size()) << std::endl;
@@ -2001,8 +2006,12 @@ void LoopClosing::MergeLocal2()
     cout << "mvpMergeConnectedKFs.size() " << mvpMergeConnectedKFs.size() << endl;
     cout << "spMapPointMerge.size() " << spMapPointMerge.size() << endl;*/
 
-
-    vpCheckFuseMapPoint.reserve(spMapPointMerge.size());
+    try {
+        vpCheckFuseMapPoint.reserve(spMapPointMerge.size());
+    } catch (const std::length_error& e) {
+        std::cerr << "lenght error caught!" << e.what() << std::endl;
+        return;
+    }
     std::copy(spMapPointMerge.begin(), spMapPointMerge.end(), std::back_inserter(vpCheckFuseMapPoint));
     //cout << "Finished to update relationship between KFs" << endl;
 
