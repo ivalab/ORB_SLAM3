@@ -27,6 +27,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
+#include <std_srvs/SetBool.h>
 
 #include<opencv2/core/core.hpp>
 
@@ -54,10 +55,16 @@ public:
 
     void GrabOdom(const nav_msgs::OdometryConstPtr &msg);
 
+    bool HandlePauseRequest(std_srvs::SetBool::Request&  req,
+                            std_srvs::SetBool::Response& res);
+
     ORB_SLAM3::System* mpSLAM;
 
     ros::Publisher mpCameraPosePublisher, mpCameraPoseInIMUPublisher;
     //    ros::Publisher mpDensePathPub;
+
+    ros::ServiceServer service;
+    bool paused = false;
 
 #ifdef MAP_PUBLISH
     size_t mnMapRefreshCounter;
@@ -148,6 +155,10 @@ int main(int argc, char **argv)
     igb.mpCameraPoseInIMUPublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose_in_imu", 100);
     ros::Subscriber sub = nh.subscribe("/odom_dummy", 100, &ImageGrabber::GrabOdom, &igb);
 
+    // Service to pause the node.
+    igb.service = nh.advertiseService("/pause_slam", &ImageGrabber::HandlePauseRequest, &igb);
+    igb.paused = false;
+
 // #ifdef FRAME_WITH_INFO_PUBLISH
     igb.mpFrameWithInfoPublisher = nh.advertise<sensor_msgs::Image>("ORB_SLAM/frame_with_info", 100);
 // #endif
@@ -191,6 +202,11 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
         return;
     }
 #endif
+
+    if (paused) {
+        ROS_WARN_STREAM_THROTTLE(10.0, "ORB3 has paused, waiting to resume ...");
+        return;
+    }
 
     const double latency_trans = ros::Time::now().toSec() - msgLeft->header.stamp.toSec();
 
@@ -364,4 +380,11 @@ void ImageGrabber::GrabOdom(const nav_msgs::Odometry::ConstPtr &msg) {
     );
 }
 
+bool ImageGrabber::HandlePauseRequest(std_srvs::SetBool::Request&  req,
+                                      std_srvs::SetBool::Response& res) {
+    paused      = req.data;
+    res.success = true;
+    res.message = paused ? "ORB3 Paused" : "ORB3 Resumed";
+    return true;
+}
 
