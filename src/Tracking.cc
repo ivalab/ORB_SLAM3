@@ -1877,7 +1877,14 @@ void Tracking::Track()
                 }
                 return;
             }
-
+            else {
+                // Force Relocalization.
+                // cout << "Timestamp jump detected, force relocalization..." << endl;
+                // mState = RECENTLY_LOST;
+                cout << "Timestamp jump detected, creat new map..." << endl;
+                CreateMapInAtlas();
+                return;
+            }
         }
     }
 
@@ -2035,6 +2042,9 @@ void Tracking::Track()
                     {
                         // Relocalization
                         bOK = Relocalization();
+                        if (!bOK) {
+                            cout << "Track Loss At Reloc" << std::endl;
+                        }
                         //std::cout << "mCurrentFrame.mTimeStamp:" << to_string(mCurrentFrame.mTimeStamp) << std::endl;
                         //std::cout << "mTimeStampLost:" << to_string(mTimeStampLost) << std::endl;
 #ifdef DISABLE_ATLAS
@@ -2165,9 +2175,10 @@ void Tracking::Track()
                 timer_.tic();
                 bOK = TrackLocalMap();
                 logCurrentFrame_.track_map = timer_.toc();
+                if (!bOK) {
+                    cout << "Fail to track local map!" << endl;
+                }
             }
-            if(!bOK)
-                cout << "Fail to track local map!" << endl;
         }
         else
         {
@@ -2193,8 +2204,10 @@ void Tracking::Track()
 
                 mState=RECENTLY_LOST;
             }
-            else
+            else {
+                Verbose::PrintMess("Set to recently lost ...", Verbose::VERBOSITY_NORMAL);
                 mState=RECENTLY_LOST; // visual to lost
+            }
 
             /*if(mCurrentFrame.mnId>mnLastRelocFrameId+mMaxFrames)
             {*/
@@ -3679,6 +3692,7 @@ bool Tracking::Relocalization()
 {
 #ifdef DISABLE_RELOC
     // do nothing
+    return false;
 #else
     Verbose::PrintMess("Starting relocalization", Verbose::VERBOSITY_NORMAL);
     // Compute Bag of Words Vector
@@ -3694,6 +3708,7 @@ bool Tracking::Relocalization()
     }
 
     const int nKFs = vpCandidateKFs.size();
+    cout << "Reloc: find " << nKFs << " keyframe candidates." << endl;\
 
     // We perform first an ORB matching with each candidate
     // If enough matches are found we setup a PnP solver
@@ -3837,12 +3852,18 @@ bool Tracking::Relocalization()
 
     if(!bMatch)
     {
+        cout << "Reloc failed!" << endl;
         return false;
     }
     else
     {
+        int vld_cnt = 0;
+        for (int io = 0; io < mCurrentFrame.N; io++)
+            if (mCurrentFrame.mvpMapPoints[io])
+                vld_cnt++;
+        cout << "Reloc succeed with " << vld_cnt << " valid map points!" << endl;
         mnLastRelocFrameId = mCurrentFrame.mnId;
-        cout << "Relocalized!!" << endl;
+        // cout << "Relocalized!!" << endl;
         return true;
     }
 #endif

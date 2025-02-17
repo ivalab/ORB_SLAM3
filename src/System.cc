@@ -258,7 +258,8 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     }
 
     // Fix verbosity
-    Verbose::SetTh(Verbose::VERBOSITY_QUIET);
+    // Verbose::SetTh(Verbose::VERBOSITY_QUIET);
+    Verbose::SetTh(Verbose::VERBOSITY_NORMAL);
 
 #ifdef ENABLE_CLOSED_LOOP
     std::cout << "System: Closed-Loop mode enabled!" << std::endl;
