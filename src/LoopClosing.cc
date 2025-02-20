@@ -103,7 +103,7 @@ void LoopClosing::Run()
 
 #ifdef DISABLE_LOOP_CLOSURE
         // do nothing
-
+        usleep(1e6);
 #else
         //NEW LOOP AND MERGE DETECTION ALGORITHM
         //----------------------------
@@ -274,6 +274,15 @@ void LoopClosing::Run()
 
                     if (bGoodLoop) {
 
+#ifdef LIMIT_LOOP_CLOSURE_COUNT
+                        // @NOTE(yanwei): dummy ways to stop correcting loops. ORB3 crashes in the long-term scenarios because of 
+                        // out-of-bound vector reserve size. The root cause is unknown yet.
+                        if (mnNumCorrection > 2) {
+                            std::cout << "Stop correcting loops to avoid vector reserve crash." << std::endl;
+                            usleep(1e6);
+                            continue;
+                        }
+#endif
                         mvpLoopMapPoints = mvpLoopMPs;
 
 #ifdef REGISTER_TIMES
