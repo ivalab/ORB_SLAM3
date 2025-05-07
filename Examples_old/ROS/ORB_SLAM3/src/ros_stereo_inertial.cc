@@ -85,7 +85,7 @@ public:
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformBroadcaster tfbr_;
     tf2_ros::TransformListener tfli_;
-    bool align_map_with_odom_ = true;
+    bool align_map_with_odom_ = false;
 
    // Added by yanwei, save tracking latency
     std::vector<double> vTimesTrack;
@@ -132,9 +132,9 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "Stereo");
     ros::start();
 
-    if(argc < 8)
+    if(argc < 9)
     {
-        cerr << endl << "Usage: rosrun ORB_SLAM3 Stereo path_to_vocabulary path_to_settings num_all_feature do_rectify do_vis cam0_topic cam1_topic path_to_traj" << endl;
+        cerr << endl << "Usage: rosrun ORB_SLAM3 Stereo path_to_vocabulary path_to_settings num_all_feature do_rectify do_vis cam0_topic cam1_topic imu_topic path_to_traj" << endl;
         ros::shutdown();
         return 1;
     }
@@ -147,7 +147,7 @@ int main(int argc, char **argv)
     SLAM.mpTracker->updateORBExtractor(stoi(argv[3]));
 
     // realtime trajectory logging
-    std::string fNameRealTimeTrack = std::string(argv[8]) + "_AllFrameTrajectory.txt";
+    std::string fNameRealTimeTrack = std::string(argv[9]) + "_AllFrameTrajectory.txt";
     std::cout << std::endl << "Saving AllFrame Trajectory to AllFrameTrajectory.txt" << std::endl;
     SLAM.mpTracker->SetRealTimeFileStream(fNameRealTimeTrack);
 
@@ -155,7 +155,7 @@ int main(int argc, char **argv)
 
     ros::NodeHandle nh;
 
-    ros::Subscriber sub_imu = nh.subscribe("/imu", 1000, &ImageGrabber::GrabImu, &igb); 
+    ros::Subscriber sub_imu = nh.subscribe(argv[8], 1000, &ImageGrabber::GrabImu, &igb); 
     // message_filters::Subscriber<sensor_msgs::Image> left_sub(nh, "/camera/left/image_raw", 1);
     // message_filters::Subscriber<sensor_msgs::Image> right_sub(nh, "/camera/right/image_raw", 1);
     message_filters::Subscriber<sensor_msgs::Image> left_sub(nh, argv[6], 1);
@@ -178,12 +178,12 @@ int main(int argc, char **argv)
     cout << "ros_stereo: done with spin!" << endl;
 
     // save stats
-    igb.saveStats(std::string(argv[8]));
+    igb.saveStats(std::string(argv[9]));
 
     // Save camera trajectory
-    SLAM.SaveKeyFrameTrajectoryTUM(std::string(argv[8]) + "_KeyFrameTrajectory.txt");
-    SLAM.SaveTrackingLog(std::string(argv[8]) + "_Log.txt" );
-    SLAM.SaveMappingLog(std::string(argv[8]) + "_Log_Mapping.txt");
+    SLAM.SaveKeyFrameTrajectoryTUM(std::string(argv[9]) + "_KeyFrameTrajectory.txt");
+    SLAM.SaveTrackingLog(std::string(argv[9]) + "_Log.txt" );
+    SLAM.SaveMappingLog(std::string(argv[9]) + "_Log_Mapping.txt");
     // SLAM.SaveTrajectoryTUM("FrameTrajectory_TUM_Format.txt");
     // SLAM.SaveTrajectoryKITTI("FrameTrajectory_KITTI_Format.txt");
 
@@ -307,7 +307,8 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
         pose = Tbi * pose;
     }
 
-    if (align_map_with_odom_)
+    // if (align_map_with_odom_)
+    if (false)
     {
         pose = PostProcess(cv_ptrLeft->header.stamp, pose);
     }
