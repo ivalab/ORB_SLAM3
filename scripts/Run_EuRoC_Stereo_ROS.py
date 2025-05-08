@@ -34,7 +34,8 @@ SeqNameList = [
 ]
 
 # Result_root = os.path.join(os.environ["HOME"], "slam_ws/results/experiments/openloop/laptop/orb3/")
-Result_root = "/tmp/gfgg"
+Result_root = "/tmp/orb3/"
+# Result_root = "/mnt/DATA/experiments/good_graph/openloop/laptop/orb3/"
 
 # Number_GF_List = [400, 800, 1000, 1500]
 Number_GF_List = [1200]  # , 200]  # , 400]
@@ -137,3 +138,12 @@ for speed in SpeedPool:
                 # print bcolors.OKGREEN + "Saving the map to file system" + bcolors.ENDC
                 # time.sleep(15)
                 subprocess.call("pkill Stereo", shell=True)
+
+                # db_src_dir = "/mnt/DATA/experiments/good_graph/euroc_feature_db/orb3/"
+                # db_tgt_dir = "/mnt/DATA/experiments/good_graph/euroc_feature_db/orb3/" + SeqName
+                # cmd_db_mkdir = f"mkdir {db_tgt_dir}"
+                # print(cmd_db_mkdir)
+                # subprocess.call(cmd_db_mkdir, shell=True)
+                # cmd_db_mv = f"mv {db_src_dir}/*.bin {db_tgt_dir}/"
+                # print(cmd_db_mv)
+                # subprocess.call(cmd_db_mv, shell=True)

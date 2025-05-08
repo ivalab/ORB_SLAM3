@@ -25,6 +25,7 @@
 #include "Converter.h"
 #include "ORBmatcher.h"
 #include "GeometricCamera.h"
+#include "slam_utility/io.h"
 
 #include <thread>
 #include <include/CameraModels/Pinhole.h>
@@ -120,10 +121,30 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
     std::chrono::steady_clock::time_point time_StartExtORB = std::chrono::steady_clock::now();
 #endif
     timer_.tic();
-    thread threadLeft(&Frame::ExtractORB,this,0,imLeft,0,0);
-    thread threadRight(&Frame::ExtractORB,this,1,imRight,0,0);
-    threadLeft.join();
-    threadRight.join();
+    if (true) {
+        thread threadLeft(&ORBextractor::ComputePyramid,
+                          this->mpORBextractorLeft, imLeft);
+        thread threadRight(&ORBextractor::ComputePyramid,
+                           this->mpORBextractorRight, imRight);
+        threadLeft.join();
+        threadRight.join();
+        // load feature points
+        bool flag = FeatureIO::loadFeaturePoints(
+            mTimeStamp, mvKeys, mDescriptors, mvKeysRight, mDescriptorsRight);
+        if (!flag) {
+            return;
+        }
+    }
+    else {
+        std::thread threadLeft(&Frame::ExtractORB, this, 0, imLeft, 0, 0);
+        std::thread threadRight(&Frame::ExtractORB, this, 1, imRight, 0, 0);
+        threadLeft.join();
+        threadRight.join();
+        // save feature points
+        FeatureIO::saveFeaturePoints(mTimeStamp, mvKeys, mDescriptors,
+                                     mvKeysRight, mDescriptorsRight);
+    }
+
     logCurrentFrame_.feature_extraction = timer_.toc();
 #ifdef REGISTER_TIMES
     std::chrono::steady_clock::time_point time_EndExtORB = std::chrono::steady_clock::now();
