@@ -46,12 +46,14 @@ class MethodMetaData:
 
 
 METHODS = [
+    MethodMetaData("orb3", 400, "ORB3"),
+    MethodMetaData("orb3", 600, "ORB3"),
     MethodMetaData("orb3", 800, "ORB3"),
     MethodMetaData("orb3", 1000, "ORB3"),
 ]
 
 DATASETS = ["tum-rgbd"]
-ROUNDS = 10
+ROUNDS = 5
 SPEEDS = [1.0]  # , 2.0, 3.0, 4.0, 5.0]  # x
 SLEEP_TIME = 1  # 10 # 25
 ENABLE_VIEWER = False
@@ -59,6 +61,7 @@ ENABLE_LOGGING = 1
 
 ORB3_PATH = os.path.join(os.environ["HOME"], "roboslam_ws/src/ORB_SLAM3")
 CONFIG_PATH = os.path.join(ORB3_PATH, "Examples_old/RGB-D")
+# CONFIG_PATH = os.path.join(os.environ["HOME"], "roboslam_ws/src/ORB_Data")
 
 SEQ_SETTINGS = {
     "rgbd_dataset_freiburg2_desk": "TUM2.yaml",
@@ -86,7 +89,7 @@ for method_idx, method in enumerate(METHODS):
             for round_idx in range(1, ROUNDS + 1):
                 method_dir = (
                     OUTPUT_DIR_ROOT
-                    / data_name
+                    / data_name / "noloop"
                     / method.name
                     / f"_Speedx{speed}/ObsNumber_{method.feature_num}_Round{round_idx}"
                 )
@@ -104,6 +107,9 @@ for method_idx, method in enumerate(METHODS):
                         file_setting = os.path.join(
                             CONFIG_PATH, SEQ_SETTINGS[seq_name]
                         )
+                        # file_setting = os.path.join(
+                        #    CONFIG_PATH, f"TUM_RGBD_yaml/Settings_TUM_{seq_name.split('_')[2]}_{method.feature_num}.yaml"
+                        # )
                     elif data_name == "cid":
                         file_setting = os.path.join(CONFIG_PATH, "CID_yaml/pinhole_depth.yaml")
                     if not os.path.exists(file_setting):
