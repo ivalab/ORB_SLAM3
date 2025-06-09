@@ -94,6 +94,13 @@ src/ros_rgbd.cc
 target_link_libraries(RGBD
 ${LIBS}
 )
+rosbuild_add_executable(RGBD_Inertial
+src/ros_rgbd_inertial.cc
+)
+
+target_link_libraries(RGBD_Inertial
+${LIBS}
+)
 
 # # Node for monocular-inertial camera
 # rosbuild_add_executable(Mono_Inertial

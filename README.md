@@ -27,12 +27,12 @@ source export_ros_path.bash # Plz configure your own path before sourcing
 
 cd build
 
-# Default build ROS with closedloop test enabled and map-atlas disabled.
+# Default build ROS with map-atlas DISABLED.
 cmake ..
 make -j
 
 # They can be turned off by passing corresponding flags, e.g.
-cmake .. -DBUILD_ROS=OFF -DENABLE_CLOSED_LOOP=OFF
+cmake .. -DDISABLE_ATLAS=OFF
 
 ```
 ### Build non-ROS only (no closed-loop supported)

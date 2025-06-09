@@ -21,33 +21,19 @@
 #include<algorithm>
 #include<fstream>
 #include<chrono>
-#include<mutex>
 
+#include <boost/circular_buffer.hpp>
+#include <sensor_msgs/Imu.h>
 #include <ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
-#include <sensor_msgs/Imu.h>
 
-#include <boost/circular_buffer.hpp>
 #include<opencv2/core/core.hpp>
 
 #include"../../../include/System.h"
 
-#include "nav_msgs/Odometry.h"
-#include "nav_msgs/Path.h"
-#include "geometry_msgs/TransformStamped.h"
-#include "tf/transform_datatypes.h"
-#include <tf/transform_broadcaster.h>
-#include <tf2_ros/static_transform_broadcaster.h>
-#include <tf2_ros/transform_broadcaster.h>
-#include <tf2_ros/transform_listener.h>
-#include <Eigen/Core>
-#include <Eigen/Geometry>
-
-//
-//#include "path_smoothing_ros/cubic_spline_interpolator.h"
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <ros/publisher.h>
 
@@ -56,41 +42,22 @@ using namespace std;
 class ImageGrabber
 {
 public:
-    ImageGrabber(ORB_SLAM3::System* pSLAM):mpSLAM(pSLAM), tfli_(tf_buffer_) {}
+    ImageGrabber(ORB_SLAM3::System* pSLAM):mpSLAM(pSLAM){}
 
-    void GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const sensor_msgs::ImageConstPtr& msgRight);
+    void GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const sensor_msgs::ImageConstPtr& msgD);
     void GrabImu(const sensor_msgs::ImuConstPtr& msg);
-    Eigen::Matrix4f Ros2Eigen(const geometry_msgs::Transform& tf);
-    Sophus::SE3f PostProcess(const ros::Time& time, const Sophus::SE3f& pose);
-
-    std::mutex imuMutex_;
-    boost::circular_buffer<sensor_msgs::Imu> imus_{100};
-    double last_image_timestamp_ = 0.0;
-    std::string dataset_;
-
-    ORB_SLAM3::System* mpSLAM;
 
     ros::Publisher mpCameraPosePublisher, mpCameraPoseInIMUPublisher;
-    //    ros::Publisher mpDensePathPub;
-
-#ifdef MAP_PUBLISH
-    size_t mnMapRefreshCounter;
-    ORB_SLAM2::MapPublisher* mpMapPub;
-#endif
-
-// #ifdef FRAME_WITH_INFO_PUBLISH
     ros::Publisher mpFrameWithInfoPublisher;
-// #endif
+    ORB_SLAM3::System* mpSLAM;
 
-    tf2_ros::StaticTransformBroadcaster static_br_;
-    tf2_ros::Buffer tf_buffer_;
-    tf2_ros::TransformBroadcaster tfbr_;
-    tf2_ros::TransformListener tfli_;
-    bool align_map_with_odom_ = false;
-
-   // Added by yanwei, save tracking latency
+    double last_image_timestamp_ = 0.0;
+    std::string dataset_;
+    // Added by yanwei, save tracking latency
     std::vector<double> vTimesTrack;
     std::vector<pair<double, double> > vStampedTimesTrack;
+    std::mutex imuMutex_;
+    boost::circular_buffer<sensor_msgs::Imu> imus_{200};
 
     void saveStats(const std::string& path_traj)
     {
@@ -130,78 +97,66 @@ public:
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "Stereo");
+    ros::init(argc, argv, "RGBD_Inertial");
     ros::start();
 
-    if(argc < 9)
+    // if(argc != 3)
+    if (argc < 8)
     {
-        cerr << endl << "Usage: rosrun ORB_SLAM3 Stereo path_to_vocabulary path_to_settings num_all_feature do_rectify do_vis cam0_topic cam1_topic imu_topic path_to_traj" << endl;
+        cerr << endl << "Usage: rosrun ORB_SLAM3 RGBD_Inertial path_to_vocabulary path_to_settings num_all_feature do_vis cam0_topic depth_topic imu_topic path_to_traj" << endl;        
         ros::shutdown();
         return 1;
-    }
+    }    
 
-    const bool do_viz = std::stoi(argv[5]);
+    const bool do_viz = std::stoi(argv[4]);
     std::cout << "viz: " << do_viz << std::endl;
-
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::IMU_STEREO, do_viz);
+    ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::IMU_RGBD,do_viz);
     SLAM.mpTracker->updateORBExtractor(stoi(argv[3]));
 
     // realtime trajectory logging
-    std::string fNameRealTimeTrack = std::string(argv[9]) + "_AllFrameTrajectory.txt";
+    std::string fNameRealTimeTrack = std::string(argv[8]) + "_AllFrameTrajectory.txt";
     std::cout << std::endl << "Saving AllFrame Trajectory to AllFrameTrajectory.txt" << std::endl;
     SLAM.mpTracker->SetRealTimeFileStream(fNameRealTimeTrack);
 
     ImageGrabber igb(&SLAM);
 
-    if (argc > 10) {
-        igb.dataset_ = argv[10];
+    if (argc > 9) {
+        igb.dataset_ = argv[9];
     }
 
     ros::NodeHandle nh;
-
-    ros::Subscriber sub_imu = nh.subscribe(argv[8], 1000, &ImageGrabber::GrabImu, &igb); 
-    // message_filters::Subscriber<sensor_msgs::Image> left_sub(nh, "/camera/left/image_raw", 1);
-    // message_filters::Subscriber<sensor_msgs::Image> right_sub(nh, "/camera/right/image_raw", 1);
-    message_filters::Subscriber<sensor_msgs::Image> left_sub(nh, argv[6], 1);
-    message_filters::Subscriber<sensor_msgs::Image> right_sub(nh, argv[7], 1);
+    ros::Subscriber sub_imu = nh.subscribe(argv[7], 1000, &ImageGrabber::GrabImu, &igb); 
+    message_filters::Subscriber<sensor_msgs::Image> rgb_sub(nh, argv[5], 100);
+    message_filters::Subscriber<sensor_msgs::Image> depth_sub(nh, argv[6], 100);
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol;
-    message_filters::Synchronizer<sync_pol> sync(sync_pol(2), left_sub,right_sub);
-    sync.registerCallback(boost::bind(&ImageGrabber::GrabStereo,&igb,_1,_2));
+    message_filters::Synchronizer<sync_pol> sync(sync_pol(10), rgb_sub,depth_sub);
+    sync.registerCallback(boost::bind(&ImageGrabber::GrabRGBD,&igb,_1,_2));
 
     igb.mpCameraPosePublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose", 100);
     igb.mpCameraPoseInIMUPublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose_in_imu", 100);
 
 // #ifdef FRAME_WITH_INFO_PUBLISH
     igb.mpFrameWithInfoPublisher = nh.advertise<sensor_msgs::Image>("ORB_SLAM/frame_with_info", 100);
-    nh.param<bool>("align_map_with_odom", igb.align_map_with_odom_, "false");
 // #endif
     while(ros::ok())
         ros::spin();
-    // ros::spin();
-
-    cout << "ros_stereo: done with spin!" << endl;
+ 
+    cout << "ros_rgbd: done with spin!" << endl;
 
     // save stats
-    igb.saveStats(std::string(argv[9]));
+    igb.saveStats(std::string(argv[8]));
 
     // Save camera trajectory
-    SLAM.SaveKeyFrameTrajectoryTUM(std::string(argv[9]) + "_KeyFrameTrajectory.txt");
-    SLAM.SaveTrackingLog(std::string(argv[9]) + "_Log.txt" );
-    SLAM.SaveMappingLog(std::string(argv[9]) + "_Log_Mapping.txt");
-    // SLAM.SaveTrajectoryTUM("FrameTrajectory_TUM_Format.txt");
-    // SLAM.SaveTrajectoryKITTI("FrameTrajectory_KITTI_Format.txt");
+    SLAM.SaveKeyFrameTrajectoryTUM(std::string(argv[8]) + "_KeyFrameTrajectory.txt");
+    SLAM.SaveTrackingLog(std::string(argv[8]) + "_Log.txt" );
+    SLAM.SaveMappingLog(std::string(argv[8]) + "_Log_Mapping.txt");
 
     std::cout << "Finished saving!" << std::endl;
-
     ros::shutdown();
-
-    cout << "ros_stereo: done with ros Shutdown!" << endl;
 
     // Stop all threads
     SLAM.Shutdown();
-    cout << "ros_stereo: done with SLAM Shutdown!" << endl;
-
     return 0;
 }
 
@@ -211,7 +166,7 @@ void ImageGrabber::GrabImu(const sensor_msgs::ImuConstPtr &msg)
     imus_.push_back(*msg);
 }
 
-void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const sensor_msgs::ImageConstPtr& msgRight)
+void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const sensor_msgs::ImageConstPtr& msgD)
 {
     if (dataset_.find(std::string("gazebo")) != std::string::npos) {
         // @NOTE (yanwei) throw the first few garbage images from gazebo
@@ -223,24 +178,24 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
         }
     }
 
-    const double latency_trans = ros::Time::now().toSec() - msgLeft->header.stamp.toSec();
+    const double latency_trans = ros::Time::now().toSec() - msgRGB->header.stamp.toSec();
 
     // Copy the ros image message to cv::Mat.
-    cv_bridge::CvImageConstPtr cv_ptrLeft;
+    cv_bridge::CvImageConstPtr cv_ptrRGB;
     try
     {
-        cv_ptrLeft = cv_bridge::toCvShare(msgLeft, "mono8");
+        cv_ptrRGB = cv_bridge::toCvShare(msgRGB);
     }
     catch (cv_bridge::Exception& e)
     {
         ROS_ERROR("cv_bridge exception: %s", e.what());
         return;
-    }
+    }    // if (align_map_with_odom_)
 
-    cv_bridge::CvImageConstPtr cv_ptrRight;
+    cv_bridge::CvImageConstPtr cv_ptrD;
     try
     {
-        cv_ptrRight = cv_bridge::toCvShare(msgRight, "mono8");
+        cv_ptrD = cv_bridge::toCvShare(msgD);
     }
     catch (cv_bridge::Exception& e)
     {
@@ -249,7 +204,7 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
     }
 
     // retrieve imus
-    double current_image_timestamp = cv_ptrLeft->header.stamp.toSec();
+    double current_image_timestamp = cv_ptrRGB->header.stamp.toSec();
     vector<ORB_SLAM3::IMU::Point> vImuMeas;
     {
         std::unique_lock<std::mutex> lock(imuMutex_);
@@ -259,7 +214,7 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
             double imu_timestamp = imu.header.stamp.toSec();
             // Skip imu msg that is earlier than the previous odom
             if (imu_timestamp <= last_image_timestamp_) continue;
-            if (imu_timestamp > current_image_timestamp) continue;
+            if (imu_timestamp > current_image_timestamp) break;
             const cv::Point3f acc(imu.linear_acceleration.x,
                                   imu.linear_acceleration.y,
                                   imu.linear_acceleration.z);
@@ -268,19 +223,28 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
                                   imu.angular_velocity.z);
             vImuMeas.emplace_back(acc, gyr, imu_timestamp);
         }
-        // std::cout << "found imus: " << vImuMeas.size() << std::endl;
+        if (vImuMeas.empty()) {
+            std::cout << "No imu measurements have been found between " << std::setprecision(20)
+                    << last_image_timestamp_ << ", " << current_image_timestamp
+                    << std::endl;
+            if (imus_.size() > 0) {
+                std::cout << "imu timestamp: " << std::setprecision(20) << imus_.front().header.stamp.toSec()
+                        << ", " << imus_.back().header.stamp.toSec() << "\n";
+            }
+            return;
+        }
     }
+
     last_image_timestamp_ = current_image_timestamp;
 
-    // tracking
-    Sophus::SE3f pose = mpSLAM->TrackStereo(cv_ptrLeft->image,cv_ptrRight->image,cv_ptrLeft->header.stamp.toSec(), vImuMeas);
+    auto pose = mpSLAM->TrackRGBD(cv_ptrRGB->image,cv_ptrD->image,cv_ptrRGB->header.stamp.toSec(), vImuMeas);
 
     // collect latency
-    double latency_total = ros::Time::now().toSec() - cv_ptrLeft->header.stamp.toSec();
+    double latency_total = ros::Time::now().toSec() - cv_ptrRGB->header.stamp.toSec();
     {
         const double track_latency = latency_total - latency_trans;
         vTimesTrack.emplace_back(track_latency);
-        vStampedTimesTrack.emplace_back(cv_ptrLeft->header.stamp.toSec(), track_latency);
+        vStampedTimesTrack.emplace_back(cv_ptrRGB->header.stamp.toSec(), track_latency);
     }
 
     if (mpSLAM->mpTracker->mState != 2) // OK
@@ -295,9 +259,7 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
         return;
     }
 
-//     ROS_INFO("Pose Tracking Latency: %.03f sec", latency_total - latency_trans);
-
-    // Convert the pose from Tcw to Twc.
+     // Convert the pose from Tcw to Twc.
     pose = pose.inverse();
 
     // by default, an additional transform is applied to make camera pose and body frame aligned
@@ -308,12 +270,6 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
             (Eigen::Matrix3f() << 0, 1, 0, -1, 0, 0, 0, 0, 1).finished(), Eigen::Vector3f::Zero()
         );
         pose = Tbi * pose;
-    }
-
-    // if (align_map_with_odom_)
-    if (false)
-    {
-        pose = PostProcess(cv_ptrLeft->header.stamp, pose);
     }
 
     const Eigen::Vector3f   t = pose.translation();
@@ -330,7 +286,7 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
 
     geometry_msgs::PoseWithCovarianceStamped camera_odom_in_imu;
 	camera_odom_in_imu.header.frame_id = "map";
-	camera_odom_in_imu.header.stamp = cv_ptrLeft->header.stamp;
+	camera_odom_in_imu.header.stamp = cv_ptrRGB->header.stamp;
 	camera_odom_in_imu.pose.pose = camera_pose_in_imu;
 
 	mpCameraPoseInIMUPublisher.publish(camera_odom_in_imu);
@@ -339,42 +295,13 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
     if (mpSLAM != NULL && mpSLAM->mpFrameDrawer != NULL) {
         cv::Mat fr_info_cv = mpSLAM->mpFrameDrawer->DrawFrame();
         cv_bridge::CvImage out_msg;
-        out_msg.header   = cv_ptrLeft->header; // Same timestamp and tf frame as input image
+        out_msg.header   = cv_ptrRGB->header; // Same timestamp and tf frame as input image
         out_msg.encoding = sensor_msgs::image_encodings::BGR8; // Or whatever
         out_msg.image    = fr_info_cv; // Your cv::Mat
         mpFrameWithInfoPublisher.publish(out_msg.toImageMsg());
     }
 // #endif
+
 }
 
 
-Sophus::SE3f ImageGrabber::PostProcess(const ros::Time& time, const Sophus::SE3f& pose)
-{
-    const Eigen::Matrix4f& Twc = pose.matrix();
-    // Define map that aligns with base_frame
-    static bool is_map_defined = false;
-    static Eigen::Matrix4f Tmw = Eigen::Matrix4f::Identity();
-    if (!is_map_defined) {
-        geometry_msgs::TransformStamped odom_to_gyro = tf_buffer_.lookupTransform(
-            "odom", "gyro_link", time, ros::Duration(0.2));
-        Tmw = Ros2Eigen(odom_to_gyro.transform) * Twc.inverse();
-        is_map_defined = true;
-    }
-
-    // Publish map to odom.
-    const Eigen::Matrix4f Tmc = Tmw * Twc;
-    return Sophus::SE3f(Tmc);
-}
-
-Eigen::Matrix4f ImageGrabber::Ros2Eigen(const geometry_msgs::Transform& tf)
-{
-    Eigen::Matrix4f out = Eigen::Matrix4f::Identity();
-    out.topLeftCorner(3, 3) = Eigen::Quaternionf(
-        tf.rotation.w,
-        tf.rotation.x,
-        tf.rotation.y,
-        tf.rotation.z
-    ).toRotationMatrix();
-    out.topRightCorner(3, 1) = Eigen::Vector3f(tf.translation.x, tf.translation.y, tf.translation.z);
-    return out;
-}

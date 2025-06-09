@@ -1,12 +1,19 @@
 cmake_minimum_required(VERSION 2.8)
 project(ORB_SLAM3)
 
-option(ENABLE_CLOSED_LOOP "Build Closed-Loop" ON)
-if(ENABLE_CLOSED_LOOP)
-    add_definitions(-DENABLE_CLOSED_LOOP)
+option(DISABLE_ATLAS "Disable Map Atlas" ON)
+if(DISABLE_ATLAS)
+    add_definitions(-DDISABLE_ATLAS)
 endif()
 
-option(BUILD_ROS "Build Closed-Loop" ON)
+option(DISABLE_LOOP_CLOSURE "Disable Loop Closure" OFF)
+if(DISABLE_LOOP_CLOSURE)
+    add_definitions(-DDISABLE_LOOP_CLOSURE)
+endif()
+
+add_definitions(-w)
+
+option(BUILD_ROS "Build ROS" ON)
 
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release)

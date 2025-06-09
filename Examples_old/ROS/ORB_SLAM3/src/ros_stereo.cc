@@ -66,6 +66,7 @@ public:
     ros::ServiceServer service;
     bool paused = false;
 
+    std::string dataset_;
 #ifdef MAP_PUBLISH
     size_t mnMapRefreshCounter;
     ORB_SLAM2::MapPublisher* mpMapPub;
@@ -141,6 +142,10 @@ int main(int argc, char **argv)
 
     ImageGrabber igb(&SLAM);
 
+    if (argc > 9) {
+        igb.dataset_ = argv[9];
+    }
+
     ros::NodeHandle nh;
 
     // message_filters::Subscriber<sensor_msgs::Image> left_sub(nh, "/camera/left/image_raw", 1);
@@ -193,16 +198,15 @@ int main(int argc, char **argv)
 
 void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const sensor_msgs::ImageConstPtr& msgRight)
 {
-#ifdef ENABLE_CLOSED_LOOP
-    // @NOTE (yanwei) throw the first few garbage images from gazebo
-    static size_t skip_imgs = 0;
-    if (skip_imgs < 10)
-    {
-        ++skip_imgs;
-        return;
+    if (dataset_.find(std::string("gazebo")) != std::string::npos) {
+        // @NOTE (yanwei) throw the first few garbage images from gazebo
+        static size_t skip_imgs = 0;
+        if (skip_imgs < 10)
+        {
+            ++skip_imgs;
+            return;
+        }
     }
-#endif
-
     if (paused) {
         ROS_WARN_STREAM_THROTTLE(10.0, "ORB3 has paused, waiting to resume ...");
         return;
@@ -249,9 +253,7 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
         return;
     }
 
-// #ifdef ENABLE_CLOSED_LOOP
 //     ROS_INFO("Pose Tracking Latency: %.03f sec", latency_total - latency_trans);
-// #endif
 
     // prepare for publishing
     const Sophus::SE3f Twc = pose.inverse();

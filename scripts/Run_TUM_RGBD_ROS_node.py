@@ -27,8 +27,9 @@ DATASET_DICT = {
         "rgbd_dataset_freiburg3_long_office_household",
     ],
     "cid": [
-        "office_1",
         "floor13_1",
+        "apartment1_1",
+        "office_1",
     ],
 }
 DATA_DIR_ROOT = Path("/mnt/DATA/datasets/")
@@ -50,9 +51,14 @@ METHODS = [
     MethodMetaData("orb3", 600, "ORB3"),
     MethodMetaData("orb3", 800, "ORB3"),
     MethodMetaData("orb3", 1000, "ORB3"),
+
+    MethodMetaData("orb3_inertial", 400, "ORB3_Inertial"),
+    MethodMetaData("orb3_inertial", 600, "ORB3_Inertial"),
+    MethodMetaData("orb3_inertial", 800, "ORB3_Inertial"),
+    MethodMetaData("orb3_inertial", 1000, "ORB3_Inertial"),
 ]
 
-DATASETS = ["tum-rgbd"]
+DATASETS = ["cid"]
 ROUNDS = 5
 SPEEDS = [1.0]  # , 2.0, 3.0, 4.0, 5.0]  # x
 SLEEP_TIME = 1  # 10 # 25
@@ -61,7 +67,6 @@ ENABLE_LOGGING = 1
 
 ORB3_PATH = os.path.join(os.environ["HOME"], "roboslam_ws/src/ORB_SLAM3")
 CONFIG_PATH = os.path.join(ORB3_PATH, "Examples_old/RGB-D")
-# CONFIG_PATH = os.path.join(os.environ["HOME"], "roboslam_ws/src/ORB_Data")
 
 SEQ_SETTINGS = {
     "rgbd_dataset_freiburg2_desk": "TUM2.yaml",
@@ -111,7 +116,9 @@ for method_idx, method in enumerate(METHODS):
                         #    CONFIG_PATH, f"TUM_RGBD_yaml/Settings_TUM_{seq_name.split('_')[2]}_{method.feature_num}.yaml"
                         # )
                     elif data_name == "cid":
-                        file_setting = os.path.join(CONFIG_PATH, "CID_yaml/pinhole_depth.yaml")
+                        file_setting = os.path.join(CONFIG_PATH, "cid.yaml")
+                        if "inertial" in method.name:
+                            file_setting = os.path.join(CONFIG_PATH, "cid_inertial.yaml")
                     if not os.path.exists(file_setting):
                         print(f"Failed to find the setting file: {file_setting}.")
                         exit(-1)
@@ -123,6 +130,10 @@ for method_idx, method in enumerate(METHODS):
                     file_data = DATA_DIR_ROOT / data_name / "rosbags" / seq_name
                     file_rosbag = str(file_data) + ".bag"
                     node_name = "RGBD"
+                    topics = " /camera/rgb/image_color /camera/depth/image "
+                    if "inertial" in method.name:
+                        node_name = "RGBD_Inertial"
+                        topics += " /imu/data "
 
                     # compose cmd
                     # cmd_slam = str(
@@ -145,7 +156,9 @@ for method_idx, method in enumerate(METHODS):
                     # )
 
                     cmd_slam = str(
-                        "rosrun ORB_SLAM3 RGBD "
+                        "rosrun ORB_SLAM3 "
+                        + node_name
+                        + " "
                         + file_vocab
                         + " "
                         + file_setting
@@ -153,7 +166,7 @@ for method_idx, method in enumerate(METHODS):
                         + str(int(method.feature_num))
                         + " "
                         + str(1 if ENABLE_VIEWER else 0)
-                        + " /camera/rgb/image_color /camera/depth/image "
+                        + topics
                         + file_traj
                         + " "
                         + file_log

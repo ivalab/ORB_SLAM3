@@ -43,6 +43,7 @@ public:
 
     ORB_SLAM3::System* mpSLAM;
 
+    std::string dataset_;
     // Added by yanwei, save tracking latency
     std::vector<double> vTimesTrack;
     std::vector<pair<double, double> > vStampedTimesTrack;
@@ -109,6 +110,10 @@ int main(int argc, char **argv)
     SLAM.mpTracker->SetRealTimeFileStream(fNameRealTimeTrack);
 
     ImageGrabber igb(&SLAM);
+
+    if (argc > 8) {
+        igb.dataset_ = argv[8];
+    }
 
     ros::NodeHandle nh;
 

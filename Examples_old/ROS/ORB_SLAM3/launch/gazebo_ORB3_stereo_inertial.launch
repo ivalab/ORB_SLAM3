@@ -18,7 +18,7 @@
         $(arg do_vis) 
         /multisense_sl/camera/left/image_raw 
         /multisense_sl/camera/right/image_raw 
-        $(arg path_track_logging)" output="screen">
+        $(arg path_track_logging) gazebo" output="screen">
     <remap from="ORB_SLAM/camera_pose_in_imu" to="$(arg slam_pose_topic)"/>
     <remap from="/imu" to="$(arg imu_topic)"/>
     <param name="align_map_with_odom" value="true" />
