@@ -17,8 +17,8 @@ import subprocess
 import time
 import signal
 
-# DATA_ROOT = os.path.join(os.environ["HOME"], "slam_ws/data/euroc/rosbags")
-DATA_ROOT = "/mnt/DATA/datasets/euroc/rosbags"
+DATA_ROOT = os.path.join(os.environ["HOME"], "slam_ws/data/euroc/rosbags")
+# DATA_ROOT = "/mnt/DATA/datasets/euroc/rosbags"
 SeqNameList = [
     "MH_01_easy",
     "MH_02_easy",
@@ -33,18 +33,18 @@ SeqNameList = [
     "V2_03_difficult",
 ]
 
-# Result_root = os.path.join(os.environ["HOME"], "slam_ws/results/experiments/openloop/laptop/orb3/")
-Result_root = "/tmp/orb3_inertial"
+Result_root = os.path.join(os.environ["HOME"], "slam_ws/results/experiments/openloop/laptop/orb3_inertial/")
+# Result_root = "/tmp/orb3_inertial"
 
 # Number_GF_List = [400, 800, 1000, 1500]
-Number_GF_List = [1200]  # , 200]  # , 400]
-NumRepeating = 1  # 10 # 20 #  5 #
+Number_GF_List = [800, 1000, 1200]  # , 200]  # , 400]
+NumRepeating = 10  # 10 # 20 #  5 #
 SpeedPool = [1.0, 2.0, 3.0, 4.0, 5.0]  # , 3.0]  # x
 SleepTime = 1  # 10 # 25
-EnableViewer = True
+EnableViewer = False
 EnableLogging = 1
 
-ORB3_PATH = os.path.join(os.environ["HOME"], "closedloop_ws/src/ORB_SLAM3")
+ORB3_PATH = os.path.join(os.environ["HOME"], "roboslam_ws/src/ORB_SLAM3")
 ConfigPath = os.path.join(ORB3_PATH, "Examples/Stereo-Inertial")
 
 

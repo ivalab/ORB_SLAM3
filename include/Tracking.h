@@ -517,8 +517,9 @@ public:
     TimeLog logCurrentFrame_;
     std::vector<TimeLog> mFrameTimeLog_;
     slam_utility::TicTocTimer timer_;
-
     MotionModel motion_model_;
+
+    std::string tracking_filename_{"/tmp/orb3_AllFrameTrajectory.txt"};
 };
 
 } //namespace ORB_SLAM

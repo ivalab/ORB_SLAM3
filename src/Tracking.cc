@@ -2939,14 +2939,14 @@ bool Tracking::TrackWithMotionModel()
     }
     else
     {
-        // Hard-code to use odom motion model.
-        Sophus::SE3f tmp_vel;
-        if (motion_model_.predict(mLastFrame.mTimeStamp, mCurrentFrame.mTimeStamp, tmp_vel))
-        {
-            mCurrentFrame.SetPose(tmp_vel * mLastFrame.GetPose());
+        // // Hard-code to use odom motion model.
+        // Sophus::SE3f tmp_vel;
+        // if (motion_model_.predict(mLastFrame.mTimeStamp, mCurrentFrame.mTimeStamp, tmp_vel))
+        // {
+        //     mCurrentFrame.SetPose(tmp_vel * mLastFrame.GetPose());
             
-        }
-        else 
+        // }
+        // else 
         {
             mCurrentFrame.SetPose(mVelocity * mLastFrame.GetPose());
         }
@@ -3927,6 +3927,15 @@ void Tracking::Reset(bool bLocMap)
     if(mpViewer)
         mpViewer->Release();
 
+    {
+        std::string from{".txt"}, to{"_r.txt"};
+        size_t pos = tracking_filename_.find(from);
+        if (pos != std::string::npos) {
+            tracking_filename_.replace(pos, from.length(), to);
+            this->SetRealTimeFileStream(tracking_filename_);
+        }
+    }
+
     Verbose::PrintMess("   End reseting! ", Verbose::VERBOSITY_NORMAL);
 }
 
@@ -4017,6 +4026,14 @@ void Tracking::ResetActiveMap(bool bLocMap)
 
     if(mpViewer)
         mpViewer->Release();
+    {
+        std::string from{".txt"}, to{"_r.txt"};
+        size_t pos = tracking_filename_.find(from);
+        if (pos != std::string::npos) {
+            tracking_filename_.replace(pos, from.length(), to);
+            this->SetRealTimeFileStream(tracking_filename_);
+        }
+    }
 
     Verbose::PrintMess("   End reseting! ", Verbose::VERBOSITY_NORMAL);
 }
@@ -4241,7 +4258,11 @@ void Tracking::updateORBExtractor(int feature_num) {
 
 void Tracking::SetRealTimeFileStream(string fNameRealTimeTrack)
 {
-    f_realTimeTrack.open(fNameRealTimeTrack.c_str());
+    if (f_realTimeTrack.is_open()) {
+        f_realTimeTrack.close();
+    }
+    tracking_filename_ = fNameRealTimeTrack;
+    f_realTimeTrack.open(tracking_filename_.c_str());
     f_realTimeTrack << fixed;
     f_realTimeTrack << "#TimeStamp Tx Ty Tz Qx Qy Qz Qw" << std::endl;
 }

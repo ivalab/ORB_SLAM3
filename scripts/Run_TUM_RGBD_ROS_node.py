@@ -94,7 +94,7 @@ for method_idx, method in enumerate(METHODS):
             for round_idx in range(1, ROUNDS + 1):
                 method_dir = (
                     OUTPUT_DIR_ROOT
-                    / data_name / "noloop"
+                    / data_name / "loop"
                     / method.name
                     / f"_Speedx{speed}/ObsNumber_{method.feature_num}_Round{round_idx}"
                 )

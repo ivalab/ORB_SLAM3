@@ -59,6 +59,7 @@ public:
     ImageGrabber(ORB_SLAM3::System* pSLAM):mpSLAM(pSLAM), tfli_(tf_buffer_) {}
 
     void GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const sensor_msgs::ImageConstPtr& msgRight);
+    void GrabStereoInertial(const sensor_msgs::ImageConstPtr& msgLeft,const sensor_msgs::ImageConstPtr& msgRight, const sensor_msgs::ImuConstPtr& msgImu);
     void GrabImu(const sensor_msgs::ImuConstPtr& msg);
     Eigen::Matrix4f Ros2Eigen(const geometry_msgs::Transform& tf);
     Sophus::SE3f PostProcess(const ros::Time& time, const Sophus::SE3f& pose);
@@ -160,14 +161,18 @@ int main(int argc, char **argv)
 
     ros::NodeHandle nh;
 
-    ros::Subscriber sub_imu = nh.subscribe(argv[8], 1000, &ImageGrabber::GrabImu, &igb); 
+    ros::Subscriber sub_imu = nh.subscribe(argv[8], 100, &ImageGrabber::GrabImu, &igb); 
     // message_filters::Subscriber<sensor_msgs::Image> left_sub(nh, "/camera/left/image_raw", 1);
     // message_filters::Subscriber<sensor_msgs::Image> right_sub(nh, "/camera/right/image_raw", 1);
-    message_filters::Subscriber<sensor_msgs::Image> left_sub(nh, argv[6], 1);
-    message_filters::Subscriber<sensor_msgs::Image> right_sub(nh, argv[7], 1);
-    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol;
-    message_filters::Synchronizer<sync_pol> sync(sync_pol(2), left_sub,right_sub);
-    sync.registerCallback(boost::bind(&ImageGrabber::GrabStereo,&igb,_1,_2));
+    message_filters::Subscriber<sensor_msgs::Image> left_sub(nh, argv[6], 2);
+    message_filters::Subscriber<sensor_msgs::Image> right_sub(nh, argv[7], 2);
+    message_filters::Subscriber<sensor_msgs::Imu> imu_sub(nh, argv[8], 100);
+    // typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol;
+    // message_filters::Synchronizer<sync_pol> sync(sync_pol(2), left_sub,right_sub);
+    // sync.registerCallback(boost::bind(&ImageGrabber::GrabStereo,&igb,_1,_2));
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Imu> sync_pol;
+    message_filters::Synchronizer<sync_pol> sync(sync_pol(10), left_sub,right_sub, imu_sub);
+    sync.registerCallback(boost::bind(&ImageGrabber::GrabStereoInertial,&igb,_1,_2, _3));
 
     igb.mpCameraPosePublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose", 100);
     igb.mpCameraPoseInIMUPublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose_in_imu", 100);
@@ -209,6 +214,8 @@ void ImageGrabber::GrabImu(const sensor_msgs::ImuConstPtr &msg)
 {
     std::unique_lock<std::mutex> lock(imuMutex_);
     imus_.push_back(*msg);
+    // std::cout << std::setprecision(20);
+    // std::cout << msg->header.stamp.toSec() << std::endl;
 }
 
 void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const sensor_msgs::ImageConstPtr& msgRight)
@@ -259,7 +266,7 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
             double imu_timestamp = imu.header.stamp.toSec();
             // Skip imu msg that is earlier than the previous odom
             if (imu_timestamp <= last_image_timestamp_) continue;
-            if (imu_timestamp > current_image_timestamp) continue;
+            if (imu_timestamp > current_image_timestamp) break;
             const cv::Point3f acc(imu.linear_acceleration.x,
                                   imu.linear_acceleration.y,
                                   imu.linear_acceleration.z);
@@ -268,6 +275,9 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
                                   imu.angular_velocity.z);
             vImuMeas.emplace_back(acc, gyr, imu_timestamp);
         }
+        // std::cout << std::setprecision(20) << imus_.back().header.stamp.toSec()
+        //           << ", last " << last_image_timestamp_ << ", "
+        //           << current_image_timestamp << std::endl;
         // std::cout << "found imus: " << vImuMeas.size() << std::endl;
     }
     last_image_timestamp_ = current_image_timestamp;
@@ -377,4 +387,150 @@ Eigen::Matrix4f ImageGrabber::Ros2Eigen(const geometry_msgs::Transform& tf)
     ).toRotationMatrix();
     out.topRightCorner(3, 1) = Eigen::Vector3f(tf.translation.x, tf.translation.y, tf.translation.z);
     return out;
+}
+
+
+void ImageGrabber::GrabStereoInertial(const sensor_msgs::ImageConstPtr& msgLeft,const sensor_msgs::ImageConstPtr& msgRight, const sensor_msgs::ImuConstPtr& msgImu) {
+
+    if (dataset_.find(std::string("gazebo")) != std::string::npos) {
+        // @NOTE (yanwei) throw the first few garbage images from gazebo
+        static size_t skip_imgs = 0;
+        if (skip_imgs < 10)
+        {
+            ++skip_imgs;
+            return;
+        }
+    }
+
+    const double latency_trans = ros::Time::now().toSec() - msgLeft->header.stamp.toSec();
+
+    // Copy the ros image message to cv::Mat.
+    cv_bridge::CvImageConstPtr cv_ptrLeft;
+    try
+    {
+        cv_ptrLeft = cv_bridge::toCvShare(msgLeft, "mono8");
+    }
+    catch (cv_bridge::Exception& e)
+    {
+        ROS_ERROR("cv_bridge exception: %s", e.what());
+        return;
+    }
+
+    cv_bridge::CvImageConstPtr cv_ptrRight;
+    try
+    {
+        cv_ptrRight = cv_bridge::toCvShare(msgRight, "mono8");
+    }
+    catch (cv_bridge::Exception& e)
+    {
+        ROS_ERROR("cv_bridge exception: %s", e.what());
+        return;
+    }
+
+    // retrieve imus
+    double current_image_timestamp = cv_ptrLeft->header.stamp.toSec();
+    vector<ORB_SLAM3::IMU::Point> vImuMeas;
+    {
+        std::unique_lock<std::mutex> lock(imuMutex_);
+        int n_imus = 0;
+        for (size_t i = 0; i < imus_.size(); ++i) {
+            const auto& imu = imus_[i];
+            double imu_timestamp = imu.header.stamp.toSec();
+            // Skip imu msg that is earlier than the previous odom
+            if (imu_timestamp <= last_image_timestamp_) continue;
+            if (imu_timestamp > current_image_timestamp) break;
+            const cv::Point3f acc(imu.linear_acceleration.x,
+                                  imu.linear_acceleration.y,
+                                  imu.linear_acceleration.z);
+            const cv::Point3f gyr(imu.angular_velocity.x,
+                                  imu.angular_velocity.y,
+                                  imu.angular_velocity.z);
+            vImuMeas.emplace_back(acc, gyr, imu_timestamp);
+        }
+        if (vImuMeas.empty()) {
+            std::cout << "No imu measurements have been found between " << std::setprecision(20)
+                    << last_image_timestamp_ << ", " << current_image_timestamp
+                    << std::endl;
+            if (imus_.size() > 0) {
+                std::cout << "imu timestamp: " << std::setprecision(20) << imus_.front().header.stamp.toSec()
+                        << ", " << imus_.back().header.stamp.toSec() << "\n";
+            }
+            return;
+        }
+    }
+    last_image_timestamp_ = current_image_timestamp;
+
+  // tracking
+    Sophus::SE3f pose = mpSLAM->TrackStereo(cv_ptrLeft->image,cv_ptrRight->image,cv_ptrLeft->header.stamp.toSec(), vImuMeas);
+
+    // collect latency
+    double latency_total = ros::Time::now().toSec() - cv_ptrLeft->header.stamp.toSec();
+    {
+        const double track_latency = latency_total - latency_trans;
+        vTimesTrack.emplace_back(track_latency);
+        vStampedTimesTrack.emplace_back(cv_ptrLeft->header.stamp.toSec(), track_latency);
+    }
+
+    if (mpSLAM->mpTracker->mState != 2) // OK
+    {
+        std::cout << "track is NOT ready" << std::endl;
+        return;
+    }
+    if (!(mpSLAM->mpLocalMapper->IMU_INIT_1 &&
+          mpSLAM->mpLocalMapper->IMU_INIT_2))
+    {
+        std::cout << "IMU INIT is NOT ready" << std::endl;
+        return;
+    }
+
+//     ROS_INFO("Pose Tracking Latency: %.03f sec", latency_total - latency_trans);
+
+    // Convert the pose from Tcw to Twc.
+    pose = pose.inverse();
+
+    // by default, an additional transform is applied to make camera pose and body frame aligned
+    // In inertial mode, the returned pose is in a frame with z staying vertically.
+    // https://github.com/UZ-SLAMLab/ORB_SLAM3/issues/409
+    {
+        const Sophus::SE3f Tbi(
+            (Eigen::Matrix3f() << 0, 1, 0, -1, 0, 0, 0, 0, 1).finished(), Eigen::Vector3f::Zero()
+        );
+        pose = Tbi * pose;
+    }
+
+    // if (align_map_with_odom_)
+    if (false)
+    {
+        pose = PostProcess(cv_ptrLeft->header.stamp, pose);
+    }
+
+    const Eigen::Vector3f   t = pose.translation();
+    const Eigen::Quaternionf q = pose.unit_quaternion();
+
+    geometry_msgs::Pose camera_pose_in_imu;
+	camera_pose_in_imu.position.x = t.x();
+	camera_pose_in_imu.position.y = t.y();
+	camera_pose_in_imu.position.z = t.z();
+	camera_pose_in_imu.orientation.x = q.x();
+	camera_pose_in_imu.orientation.y = q.y();
+	camera_pose_in_imu.orientation.z = q.z();
+	camera_pose_in_imu.orientation.w = q.w();
+
+    geometry_msgs::PoseWithCovarianceStamped camera_odom_in_imu;
+	camera_odom_in_imu.header.frame_id = "map";
+	camera_odom_in_imu.header.stamp = cv_ptrLeft->header.stamp;
+	camera_odom_in_imu.pose.pose = camera_pose_in_imu;
+
+	mpCameraPoseInIMUPublisher.publish(camera_odom_in_imu);
+
+// #ifdef FRAME_WITH_INFO_PUBLISH
+    if (mpSLAM != NULL && mpSLAM->mpFrameDrawer != NULL) {
+        cv::Mat fr_info_cv = mpSLAM->mpFrameDrawer->DrawFrame();
+        cv_bridge::CvImage out_msg;
+        out_msg.header   = cv_ptrLeft->header; // Same timestamp and tf frame as input image
+        out_msg.encoding = sensor_msgs::image_encodings::BGR8; // Or whatever
+        out_msg.image    = fr_info_cv; // Your cv::Mat
+        mpFrameWithInfoPublisher.publish(out_msg.toImageMsg());
+    }
+// #endif
 }
