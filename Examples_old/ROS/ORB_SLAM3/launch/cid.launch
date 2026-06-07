@@ -1,0 +1,23 @@
+
+<launch>
+
+    <arg name="path_slam_config" default="/home/yanwei/roboslam_ws/src/ORB_SLAM3/Examples_old/RGB-D/"/>
+    <arg name="path_track_logging" default="/tmp/orb3_imu"/>
+    <arg name="num_all_feature" default="1200" />
+    <arg name="do_rectify" default="false" />
+    <arg name="do_vis" default="0" />
+    <arg name="slam_pose_topic" default="/visual/pose"/>
+
+    <!-- call baseline ORB-SLAM for vision-based state estimation  -->
+    <node pkg="ORB_SLAM3" type="RGBD_Inertial" name="visual_slam" 
+        args="/home/yanwei/roboslam_ws/src/ORB_Data/ORBvoc.bin 
+            $(arg path_slam_config)/cid_inertial.yaml 
+            $(arg num_all_feature) 
+            $(arg do_vis) 
+            /camera/rgb/image_color 
+            /camera/depth/image 
+            /imu 
+            $(arg path_track_logging)" output="screen">
+        <remap from="ORB_SLAM/camera_pose_in_imu" to="$(arg slam_pose_topic)"/>
+    </node>
+</launch>

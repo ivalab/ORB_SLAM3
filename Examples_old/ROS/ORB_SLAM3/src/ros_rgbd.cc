@@ -134,6 +134,7 @@ int main(int argc, char **argv)
     SLAM.SaveKeyFrameTrajectoryTUM(std::string(argv[7]) + "_KeyFrameTrajectory.txt");
     SLAM.SaveTrackingLog(std::string(argv[7]) + "_Log.txt" );
     SLAM.SaveMappingLog(std::string(argv[7]) + "_Log_Mapping.txt");
+    SLAM.SaveLoopClosingLog(std::string(argv[8]) + "_Log_LoopClosure.txt");
 
     std::cout << "Finished saving!" << std::endl;
     ros::shutdown();

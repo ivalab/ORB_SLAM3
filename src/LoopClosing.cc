@@ -109,6 +109,7 @@ void LoopClosing::Run()
         //----------------------------
 
 
+        TicTocTimer local_timer;
         if(CheckNewKeyFrames())
         {
             if(mpLastCurrentKF)
@@ -119,8 +120,16 @@ void LoopClosing::Run()
 #ifdef REGISTER_TIMES
             std::chrono::steady_clock::time_point time_StartPR = std::chrono::steady_clock::now();
 #endif
-
+            // Logging.
+            {
+                cur_frame_log_.reset();
+                cur_frame_log_.timestamp = mpCurrentKF->mTimeStamp;
+                cur_frame_log_.kf_id = mpCurrentKF->mnId;
+            }
+    
+            local_timer.tic();
             bool bFindedRegion = NewDetectCommonRegions();
+            cur_frame_log_.detect_loop = local_timer.toc();
 
 #ifdef REGISTER_TIMES
             std::chrono::steady_clock::time_point time_EndPR = std::chrono::steady_clock::now();
@@ -291,7 +300,10 @@ void LoopClosing::Run()
                         nLoop += 1;
 
 #endif
+                        local_timer.tic();
                         CorrectLoop();
+                        cur_frame_log_.correct_loop = local_timer.toc();
+                        cur_frame_log_.flag = true;
 #ifdef REGISTER_TIMES
                         std::chrono::steady_clock::time_point time_EndLoop = std::chrono::steady_clock::now();
 
@@ -300,6 +312,8 @@ void LoopClosing::Run()
 #endif
 
                         mnNumCorrection += 1;
+                        lcd_logs_.push_back(cur_frame_log_);
+                        cur_frame_log_.reset();
                     }
 
                     // Reset all variables
@@ -1195,6 +1209,7 @@ void LoopClosing::CorrectLoop()
         vdLoopFusion_ms.push_back(timeFusion);
 #endif
     //cout << "Optimize essential graph" << endl;
+    TicTocTimer local_timer;
     if(pLoopMap->IsInertial() && pLoopMap->isImuInitialized())
     {
         Optimizer::OptimizeEssentialGraph4DoF(pLoopMap, mpLoopMatchedKF, mpCurrentKF, NonCorrectedSim3, CorrectedSim3, LoopConnections);
@@ -1210,7 +1225,10 @@ void LoopClosing::CorrectLoop()
     double timeOptEss = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(time_EndOpt - time_EndFusion).count();
     vdLoopOptEss_ms.push_back(timeOptEss);
 #endif
-
+    // cerr << fixed << setprecision(6) << mpTracker->logCurrentFrame.frame_time_stamp << ": Essential Graph Done" << endl;
+    cur_frame_log_.essential_graph = local_timer.toc();
+    cur_frame_log_.num_kfs   = mpAtlas->GetAllKeyFrames().size();
+    cur_frame_log_.num_mpts  = mpAtlas->GetAllMapPoints().size();
     mpAtlas->InformNewBigChange();
 
     // Add loop edge
@@ -2309,6 +2327,9 @@ void LoopClosing::RunGlobalBundleAdjustment(Map* pActiveMap, unsigned long nLoop
     vnGBAMPs.push_back(pActiveMap->GetAllMapPoints().size());
 #endif
 
+    TicTocTimer local_timer;
+    local_timer.tic();
+
     const bool bImuInit = pActiveMap->isImuInitialized();
 
     if(!bImuInit)
@@ -2536,6 +2557,7 @@ void LoopClosing::RunGlobalBundleAdjustment(Map* pActiveMap, unsigned long nLoop
             Verbose::PrintMess("Map updated!", Verbose::VERBOSITY_NORMAL);
         }
 
+        cur_frame_log_.global_ba = local_timer.toc();
         mbFinishedGBA = true;
         mbRunningGBA = false;
     }

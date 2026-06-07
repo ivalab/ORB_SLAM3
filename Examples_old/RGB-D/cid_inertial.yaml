@@ -38,7 +38,7 @@ Camera.RGB: 1
 # Close/Far threshold. Baseline times.
 # ThDepth: 35
 Stereo.ThDepth: 40.0
-Stereo.b: 0.07732
+Stereo.b: 0.10752298983041042
 
 # Transformation from camera 0 to body-frame (imu)
 IMU.T_b_c1: !!opencv-matrix

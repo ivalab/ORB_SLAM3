@@ -41,9 +41,8 @@ class LocalMapping;
 class KeyFrameDatabase;
 class Map;
 
-
-class LoopClosing
-{
+using namespace slam_utility;
+class LoopClosing {
 public:
 
     typedef pair<set<KeyFrame*>,int> ConsistentGroup;    
@@ -243,6 +242,39 @@ protected:
 #ifdef REGISTER_LOOP
     string mstrFolderLoop;
 #endif
+
+public:
+    struct LoopClosureStats {
+        double  timestamp       = 0.0;
+        int64_t kf_id           = 0;
+        bool    flag            = false;
+        float   detect_loop     = 0.0;
+        float   compute_sim3    = 0.0;
+        float   correct_loop    = 0.0;
+        float   essential_graph = 0.0;
+        float   global_ba       = 0.0;
+        int64_t num_kfs         = 0;
+        int64_t num_mpts        = 0;
+
+        friend std::ostream& operator<<(std::ostream & os, const LoopClosureStats& s) {
+            os << std::fixed << std::setprecision(6);
+            os << s.timestamp << " " << s.kf_id << " "
+            << static_cast<int32_t>(s.flag) << " " << s.detect_loop << " "
+            << s.compute_sim3 << " " << s.correct_loop << " "
+            << s.essential_graph << " " << s.global_ba << " " << s.num_kfs << " " << s.num_mpts;
+            return os;
+        }
+
+        void reset() { *this = LoopClosureStats(); }
+
+        static std::string header() {
+            return "#timestamp kf_id flag detect_loop compute_sim3 correct_loop "
+                "essential_graph global_ba num_kfs num_mpts";
+        }
+    };
+
+    LoopClosureStats              cur_frame_log_;
+    std::vector<LoopClosureStats> lcd_logs_;
 };
 
 } //namespace ORB_SLAM

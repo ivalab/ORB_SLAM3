@@ -38,8 +38,8 @@ Result_root = os.path.join(os.environ["HOME"], "slam_ws/results/experiments/open
 
 # Number_GF_List = [400, 800, 1000, 1500]
 Number_GF_List = [800, 1000, 1200]  # , 200]  # , 400]
-NumRepeating = 10  # 10 # 20 #  5 #
-SpeedPool = [1.0, 2.0, 3.0, 4.0, 5.0]  # , 3.0]  # x
+NumRepeating = 1  # 10 # 20 #  5 #
+SpeedPool = [3.0] #, 2.0, 3.0, 4.0, 5.0]  # , 3.0]  # x
 SleepTime = 1  # 10 # 25
 EnableViewer = False
 EnableLogging = 1

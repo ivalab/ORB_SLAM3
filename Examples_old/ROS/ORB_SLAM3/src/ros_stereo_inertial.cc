@@ -194,6 +194,7 @@ int main(int argc, char **argv)
     SLAM.SaveKeyFrameTrajectoryTUM(std::string(argv[9]) + "_KeyFrameTrajectory.txt");
     SLAM.SaveTrackingLog(std::string(argv[9]) + "_Log.txt" );
     SLAM.SaveMappingLog(std::string(argv[9]) + "_Log_Mapping.txt");
+    SLAM.SaveLoopClosingLog(std::string(argv[8]) + "_Log_LoopClosure.txt");
     // SLAM.SaveTrajectoryTUM("FrameTrajectory_TUM_Format.txt");
     // SLAM.SaveTrajectoryKITTI("FrameTrajectory_KITTI_Format.txt");
 

@@ -169,6 +169,7 @@ public:
 
     void SaveTrackingLog(const string &filename);
     void SaveMappingLog(const string &filename);
+    void SaveLoopClosingLog(const string &filename);
 
     // TODO: Save/Load functions
     // SaveMap(const string &filename);

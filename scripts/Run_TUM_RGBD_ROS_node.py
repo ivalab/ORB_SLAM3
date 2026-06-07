@@ -28,12 +28,13 @@ DATASET_DICT = {
     ],
     "cid": [
         "floor13_1",
-        "apartment1_1",
-        "office_1",
+        # "apartment1_1",
+        # "office_1",
     ],
 }
 DATA_DIR_ROOT = Path("/mnt/DATA/datasets/")
-OUTPUT_DIR_ROOT = Path("/mnt/DATA/experiments/semantic/")
+# OUTPUT_DIR_ROOT = Path("/mnt/DATA/experiments/semantic/")
+OUTPUT_DIR_ROOT = Path("/tmp/orb3")
 # ------------------------------- END ------------------------------------------
 
 
@@ -47,22 +48,22 @@ class MethodMetaData:
 
 
 METHODS = [
-    MethodMetaData("orb3", 400, "ORB3"),
-    MethodMetaData("orb3", 600, "ORB3"),
-    MethodMetaData("orb3", 800, "ORB3"),
-    MethodMetaData("orb3", 1000, "ORB3"),
+    # MethodMetaData("orb3", 400, "ORB3"),
+    # MethodMetaData("orb3", 600, "ORB3"),
+    # MethodMetaData("orb3", 800, "ORB3"),
+    # MethodMetaData("orb3", 1000, "ORB3"),
 
-    MethodMetaData("orb3_inertial", 400, "ORB3_Inertial"),
-    MethodMetaData("orb3_inertial", 600, "ORB3_Inertial"),
-    MethodMetaData("orb3_inertial", 800, "ORB3_Inertial"),
+    # MethodMetaData("orb3_inertial", 400, "ORB3_Inertial"),
+    # MethodMetaData("orb3_inertial", 600, "ORB3_Inertial"),
+    # MethodMetaData("orb3_inertial", 800, "ORB3_Inertial"),
     MethodMetaData("orb3_inertial", 1000, "ORB3_Inertial"),
 ]
 
 DATASETS = ["cid"]
-ROUNDS = 5
+ROUNDS = 1
 SPEEDS = [1.0]  # , 2.0, 3.0, 4.0, 5.0]  # x
 SLEEP_TIME = 1  # 10 # 25
-ENABLE_VIEWER = False
+ENABLE_VIEWER = True
 ENABLE_LOGGING = 1
 
 ORB3_PATH = os.path.join(os.environ["HOME"], "roboslam_ws/src/ORB_SLAM3")

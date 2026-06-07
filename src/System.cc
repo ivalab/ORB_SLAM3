@@ -1593,5 +1593,18 @@ void System::SaveMappingLog(const string &filename)
     myfile.close();
 }
 
+void System::SaveLoopClosingLog(const string &filename)
+{
+    cout << endl << "Saving loop closing log to " << filename << " ..." << endl;
+    std::ofstream myfile(filename);
+    myfile << LoopClosing::LoopClosureStats::header() << "\n";
+    myfile << std::fixed;
+    for (const auto& log : mpLoopCloser->lcd_logs_)
+    {
+        myfile << log << "\n";
+    }
+    myfile.close();
+}
+
 } //namespace ORB_SLAM
 
