@@ -58,7 +58,7 @@ public:
     std::vector<double> vTimesTrack;
     std::vector<pair<double, double> > vStampedTimesTrack;
     std::mutex imuMutex_;
-    boost::circular_buffer<sensor_msgs::Imu> imus_{200};
+    boost::circular_buffer<sensor_msgs::Imu> imus_{1000};
 
     void saveStats(const std::string& path_traj)
     {
@@ -130,12 +130,9 @@ int main(int argc, char **argv)
     ros::Subscriber sub_imu = nh.subscribe(argv[7], 200, &ImageGrabber::GrabImu, &igb); 
     message_filters::Subscriber<sensor_msgs::Image> rgb_sub(nh, argv[5], 5);
     message_filters::Subscriber<sensor_msgs::Image> depth_sub(nh, argv[6], 5);
-    message_filters::Subscriber<sensor_msgs::Imu> imu_sub(nh, argv[7], 200);
-    // typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol;
-    // message_filters::Synchronizer<sync_pol> sync(sync_pol(10), rgb_sub,depth_sub);
-    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Imu> sync_pol;
-    message_filters::Synchronizer<sync_pol> sync(sync_pol(10), rgb_sub,depth_sub, imu_sub);
-    sync.registerCallback(boost::bind(&ImageGrabber::GrabRgbdInertial,&igb,_1,_2,_3));
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol;
+    message_filters::Synchronizer<sync_pol> sync(sync_pol(10), rgb_sub,depth_sub);
+    sync.registerCallback(boost::bind(&ImageGrabber::GrabRGBD,&igb,_1,_2));
 
     igb.mpCameraPosePublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose", 100);
     igb.mpCameraPoseInIMUPublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose_in_imu", 100);

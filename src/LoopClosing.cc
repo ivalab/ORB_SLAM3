@@ -120,12 +120,6 @@ void LoopClosing::Run()
 #ifdef REGISTER_TIMES
             std::chrono::steady_clock::time_point time_StartPR = std::chrono::steady_clock::now();
 #endif
-            // Logging.
-            {
-                cur_frame_log_.reset();
-                cur_frame_log_.timestamp = mpCurrentKF->mTimeStamp;
-                cur_frame_log_.kf_id = mpCurrentKF->mnId;
-            }
     
             local_timer.tic();
             bool bFindedRegion = NewDetectCommonRegions();
@@ -312,10 +306,12 @@ void LoopClosing::Run()
 #endif
 
                         mnNumCorrection += 1;
-                        lcd_logs_.push_back(cur_frame_log_);
-                        cur_frame_log_.reset();
                     }
 
+                    // save loop closure log
+                    lcd_logs_.push_back(cur_frame_log_);
+                    cur_frame_log_.reset();
+ 
                     // Reset all variables
                     mpLoopLastCurrentKF->SetErase();
                     mpLoopMatchedKF->SetErase();
@@ -398,7 +394,12 @@ bool LoopClosing::NewDetectCommonRegions()
     }
 
     //cout << "LoopClousure: Checking KF: " << mpCurrentKF->mnId << endl;
-
+    // Logging.
+    {
+        cur_frame_log_.reset();
+        cur_frame_log_.timestamp = mpCurrentKF->mTimeStamp;
+        cur_frame_log_.kf_id = mpCurrentKF->mnId;
+    }
     //Check the last candidates with geometric validation
     // Loop candidates
     bool bLoopDetectedInKF = false;
@@ -1210,6 +1211,7 @@ void LoopClosing::CorrectLoop()
 #endif
     //cout << "Optimize essential graph" << endl;
     TicTocTimer local_timer;
+    local_timer.tic();
     if(pLoopMap->IsInertial() && pLoopMap->isImuInitialized())
     {
         Optimizer::OptimizeEssentialGraph4DoF(pLoopMap, mpLoopMatchedKF, mpCurrentKF, NonCorrectedSim3, CorrectedSim3, LoopConnections);

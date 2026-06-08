@@ -166,13 +166,13 @@ int main(int argc, char **argv)
     // message_filters::Subscriber<sensor_msgs::Image> right_sub(nh, "/camera/right/image_raw", 1);
     message_filters::Subscriber<sensor_msgs::Image> left_sub(nh, argv[6], 2);
     message_filters::Subscriber<sensor_msgs::Image> right_sub(nh, argv[7], 2);
-    message_filters::Subscriber<sensor_msgs::Imu> imu_sub(nh, argv[8], 100);
-    // typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol;
-    // message_filters::Synchronizer<sync_pol> sync(sync_pol(2), left_sub,right_sub);
-    // sync.registerCallback(boost::bind(&ImageGrabber::GrabStereo,&igb,_1,_2));
-    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Imu> sync_pol;
-    message_filters::Synchronizer<sync_pol> sync(sync_pol(10), left_sub,right_sub, imu_sub);
-    sync.registerCallback(boost::bind(&ImageGrabber::GrabStereoInertial,&igb,_1,_2, _3));
+    // message_filters::Subscriber<sensor_msgs::Imu> imu_sub(nh, argv[8], 100);
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol;
+    message_filters::Synchronizer<sync_pol> sync(sync_pol(2), left_sub,right_sub);
+    sync.registerCallback(boost::bind(&ImageGrabber::GrabStereo,&igb,_1,_2));
+    // typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Imu> sync_pol;
+    // message_filters::Synchronizer<sync_pol> sync(sync_pol(10), left_sub,right_sub, imu_sub);
+    // sync.registerCallback(boost::bind(&ImageGrabber::GrabStereoInertial,&igb,_1,_2, _3));
 
     igb.mpCameraPosePublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose", 100);
     igb.mpCameraPoseInIMUPublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose_in_imu", 100);
