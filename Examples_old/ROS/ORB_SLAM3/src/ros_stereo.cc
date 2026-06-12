@@ -79,6 +79,7 @@ public:
    // Added by yanwei, save tracking latency
     std::vector<double> vTimesTrack;
     std::vector<pair<double, double> > vStampedTimesTrack;
+    int64_t total_images_ = 0;
 
     void saveStats(const std::string& path_traj)
     {
@@ -95,7 +96,7 @@ public:
         {
             std::ofstream myfile(path_traj + "_stats.txt");
             myfile << "#dummy processed_img_num mean_time median_time min_time max_time\n";
-            myfile << std::setprecision(6) << -1 << " "
+            myfile << std::setprecision(6) << total_images_ << " "
                 << proccIm << " "
                 << totaltime / proccIm << " "
                 << vTimesTrack[proccIm/2] << " "
@@ -208,6 +209,9 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
             return;
         }
     }
+
+    total_images_++;
+
     if (paused) {
         ROS_WARN_STREAM_THROTTLE(10.0, "ORB3 has paused, waiting to resume ...");
         return;

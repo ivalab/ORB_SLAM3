@@ -68,6 +68,7 @@ public:
     boost::circular_buffer<sensor_msgs::Imu> imus_{100};
     double last_image_timestamp_ = 0.0;
     std::string dataset_;
+    int64_t total_images_ = 0;
 
     ORB_SLAM3::System* mpSLAM;
 
@@ -108,7 +109,7 @@ public:
         {
             std::ofstream myfile(path_traj + "_stats.txt");
             myfile << "#dummy processed_img_num mean_time median_time min_time max_time\n";
-            myfile << std::setprecision(6) << -1 << " "
+            myfile << std::setprecision(6) << total_images_ << " "
                 << proccIm << " "
                 << totaltime / proccIm << " "
                 << vTimesTrack[proccIm/2] << " "
@@ -231,6 +232,7 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
         }
     }
 
+    total_images_++;
     const double latency_trans = ros::Time::now().toSec() - msgLeft->header.stamp.toSec();
 
     // Copy the ros image message to cv::Mat.
@@ -344,6 +346,7 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
 	camera_odom_in_imu.header.stamp = cv_ptrLeft->header.stamp;
 	camera_odom_in_imu.pose.pose = camera_pose_in_imu;
 
+	total_images_++;
 	mpCameraPoseInIMUPublisher.publish(camera_odom_in_imu);
 
 // #ifdef FRAME_WITH_INFO_PUBLISH

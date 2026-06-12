@@ -15,7 +15,7 @@
         $(arg num_all_feature) 
         $(arg do_vis) 
         /camera/color/image_raw 
-        /camera/depth/image_raw 
+        /camera/aligned_depth_to_color/image_raw 
         /camera/imu 
         $(arg output_dir)" output="screen">
     <remap from="ORB_SLAM/camera_pose_in_imu" to="$(arg slam_pose_topic)"/>

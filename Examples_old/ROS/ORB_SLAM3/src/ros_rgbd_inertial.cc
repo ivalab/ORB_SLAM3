@@ -59,6 +59,7 @@ public:
     std::vector<pair<double, double> > vStampedTimesTrack;
     std::mutex imuMutex_;
     boost::circular_buffer<sensor_msgs::Imu> imus_{1000};
+    int64_t total_images_ = 0;
 
     void saveStats(const std::string& path_traj)
     {
@@ -75,7 +76,7 @@ public:
         {
             std::ofstream myfile(path_traj + "_stats.txt");
             myfile << "#dummy processed_img_num mean_time median_time min_time max_time\n";
-            myfile << std::setprecision(6) << -1 << " "
+            myfile << std::setprecision(6) << total_images_ << " "
                 << proccIm << " "
                 << totaltime / proccIm << " "
                 << vTimesTrack[proccIm/2] << " "
@@ -179,6 +180,8 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
             return;
         }
     }
+
+    total_images_++;
 
     const double latency_trans = ros::Time::now().toSec() - msgRGB->header.stamp.toSec();
 
@@ -317,6 +320,8 @@ void ImageGrabber::GrabRgbdInertial(const sensor_msgs::ImageConstPtr& msgRGB, co
             return;
         }
     }
+
+    total_images_++;
 
     const double latency_trans = ros::Time::now().toSec() - msgRGB->header.stamp.toSec();
 
